@@ -2,16 +2,18 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
-import { Undo2, Search, X, Image, MapPin, CheckCircle2 } from 'lucide-react'
+import { Undo2, CheckCircle2 } from 'lucide-react'
 import AccessDenied from '../components/AccessDenied'
+import { useStoreForm } from '../hooks/useStoreForm'
+import { groupLocationsByStore } from '../lib/storeLocationUtils'
+import { STORE_ROLES } from '../lib/storeRoles'
+import { RETURN_REASON_TYPES, QUANTITY_RULES, FORM_DEFAULTS } from '../lib/storeConstants'
 
-const ALLOWED_ROLES = ['owner', 'admin', 'procurement', 'security_guard', 'production_head', 'operator']
-const RETURN_REASONS = ['Excess / Not used', 'Wrong item issued', 'Job cancelled', 'Quality rejected', 'Other']
-const TODAY = new Date().toISOString().split('T')[0]
+const ALLOWED_ROLES = STORE_ROLES.RETURN
 
 const EMPTY_FORM = {
   item_id: '',
-  return_date: TODAY,
+  return_date: FORM_DEFAULTS.TODAY,
   quantity: '',
   return_reason: '',
   returned_by_name: '',
@@ -23,14 +25,11 @@ export default function StoreReturn({ profile }) {
   if (!ALLOWED_ROLES.includes(profile?.role)) return <AccessDenied />
 
   const navigate = useNavigate()
+  const { form, setForm, updateField, resetForm, saving, setSaving } = useStoreForm(EMPTY_FORM)
   const [items, setItems] = useState([])
   const [locations, setLocations] = useState([])
-  const [itemSearch, setItemSearch] = useState('')
-  const [showDropdown, setShowDropdown] = useState(false)
   const [selectedItem, setSelectedItem] = useState(null)
-  const [form, setForm] = useState(EMPTY_FORM)
   const [currentStock, setCurrentStock] = useState(null)
-  const [saving, setSaving] = useState(false)
 
   const searchRef = useRef(null)
   const dropdownRef = useRef(null)

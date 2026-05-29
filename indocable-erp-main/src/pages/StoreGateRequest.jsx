@@ -2,13 +2,11 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
-import { ShieldCheck, Search, X, Image, ArrowDownToLine, ArrowUpFromLine, Copy, Clock } from 'lucide-react'
+import { ShieldCheck, Search, X, Image, ArrowDownToLine, ArrowUpFromLine, Copy, Clock, AlertTriangle } from 'lucide-react'
 import AccessDenied from '../components/AccessDenied'
+import { STORE_ROLES } from '../lib/storeRoles'
 
-const ALLOWED_ROLES = [
-  'owner', 'admin', 'procurement', 'security_guard',
-  'production_head', 'operator', 'helper',
-]
+const ALLOWED_ROLES = STORE_ROLES.GATE_REQUEST
 
 const EMPTY_FORM = {
   request_type: 'deposit',
@@ -28,6 +26,7 @@ export default function StoreGateRequest({ profile }) {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [pendingOtp, setPendingOtp] = useState(null)
+  const [timeRemaining, setTimeRemaining] = useState(null)
 
   const itemSearchRef = useRef(null)
   const dropdownRef = useRef(null)
@@ -42,6 +41,32 @@ export default function StoreGateRequest({ profile }) {
   }, [])
 
   useEffect(() => { fetchItems() }, [fetchItems])
+
+  // OTP expiry countdown timer
+  useEffect(() => {
+    if (!pendingOtp?.expires_at) {
+      setTimeRemaining(null)
+      return
+    }
+
+    const updateTimer = () => {
+      const now = new Date().getTime()
+      const expires = new Date(pendingOtp.expires_at).getTime()
+      const diff = Math.max(0, Math.floor((expires - now) / 1000))
+
+      if (diff <= 0) {
+        setTimeRemaining(null)
+        setPendingOtp(null)
+        toast.error(t('gateRequest.otpExpired'))
+      } else {
+        setTimeRemaining(diff)
+      }
+    }
+
+    updateTimer()
+    const interval = setInterval(updateTimer, 1000)
+    return () => clearInterval(interval)
+  }, [pendingOtp, t])
 
   useEffect(() => {
     function handleClick(e) {
@@ -112,6 +137,17 @@ export default function StoreGateRequest({ profile }) {
     return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
+  function formatTimeRemaining(seconds) {
+    if (seconds === null || seconds === undefined) return ''
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  function isOtpExpiringSoon() {
+    return timeRemaining !== null && timeRemaining <= 60 // Less than 1 minute
+  }
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
@@ -125,25 +161,60 @@ export default function StoreGateRequest({ profile }) {
       </div>
 
       {pendingOtp && (
-        <div className="mb-6 rounded-xl border-2 border-brand-200 bg-brand-50 p-6 text-center">
-          <p className="text-sm font-medium text-brand-800 mb-2">{t('gateRequest.showOtp')}</p>
+        <div className={`mb-6 rounded-xl border-2 p-6 text-center transition-all ${
+          isOtpExpiringSoon()
+            ? 'border-orange-300 bg-orange-50'
+            : 'border-brand-200 bg-brand-50'
+        }`}>
+          <p className={`text-sm font-medium mb-2 ${
+            isOtpExpiringSoon() ? 'text-orange-800' : 'text-brand-800'
+          }`}>
+            {t('gateRequest.showOtp')}
+          </p>
           <div className="flex items-center justify-center gap-3">
-            <span className="text-4xl font-mono font-bold tracking-[0.3em] text-brand-700">
+            <span className={`text-4xl font-mono font-bold tracking-[0.3em] ${
+              isOtpExpiringSoon() ? 'text-orange-700' : 'text-brand-700'
+            }`}>
               {pendingOtp.otp_code}
             </span>
-            <button type="button" onClick={copyOtp} className="p-2 rounded-lg hover:bg-brand-100" title={t('gateRequest.copy')}>
-              <Copy size={18} className="text-brand-600" />
+            <button
+              type="button"
+              onClick={copyOtp}
+              className={`p-2 rounded-lg transition-colors ${
+                isOtpExpiringSoon()
+                  ? 'hover:bg-orange-100'
+                  : 'hover:bg-brand-100'
+              }`}
+              title={t('gateRequest.copy')}
+            >
+              <Copy size={18} className={isOtpExpiringSoon() ? 'text-orange-600' : 'text-brand-600'} />
             </button>
           </div>
-          <p className="text-xs text-brand-600 mt-3 flex items-center justify-center gap-1">
-            <Clock size={12} />
-            {t('gateRequest.expiresAt', { time: formatExpiry(pendingOtp.expires_at) })}
+
+          {/* Countdown timer */}
+          <p className={`text-sm font-mono font-bold mt-3 flex items-center justify-center gap-2 ${
+            isOtpExpiringSoon() ? 'text-orange-700' : 'text-brand-700'
+          }`}>
+            <Clock size={14} />
+            {formatTimeRemaining(timeRemaining)}
           </p>
-          <p className="text-xs text-gray-500 mt-2">{t('gateRequest.gateHint')}</p>
+
+          {/* Expiry warning */}
+          {isOtpExpiringSoon() && (
+            <div className="mt-3 flex items-center justify-center gap-2 text-orange-700 text-xs bg-orange-100 p-2 rounded">
+              <AlertTriangle size={14} />
+              {t('gateRequest.expiringWarning')}
+            </div>
+          )}
+
+          <p className="text-xs text-gray-500 mt-3">{t('gateRequest.gateHint')}</p>
           <button
             type="button"
-            className="mt-4 text-sm text-brand-700 underline"
-            onClick={() => setPendingOtp(null)}
+            className="mt-4 text-sm text-brand-700 underline hover:no-underline"
+            onClick={() => {
+              setPendingOtp(null)
+              setTimeRemaining(null)
+            }}
           >
             {t('gateRequest.newRequest')}
           </button>

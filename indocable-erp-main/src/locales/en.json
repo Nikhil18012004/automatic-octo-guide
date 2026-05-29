@@ -73,6 +73,8 @@
     "copy": "Copy code",
     "otpCopied": "Code copied",
     "expiresAt": "Stops working at {{time}}",
+    "expiringWarning": "This code expires in less than 1 minute",
+    "otpExpired": "Code expired. Please generate a new one.",
     "gateHint": "Someone at the store opens /store-gate and types this code",
     "newRequest": "New request"
   },

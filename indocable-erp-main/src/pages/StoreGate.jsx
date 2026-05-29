@@ -9,6 +9,7 @@ export default function StoreGate() {
   const [status, setStatus] = useState('idle') // idle | loading | success | error
   const [message, setMessage] = useState('')
   const [detail, setDetail] = useState(null)
+  const [error, setError] = useState(null)
   const inputRefs = useRef([])
 
   useEffect(() => {
@@ -19,8 +20,13 @@ export default function StoreGate() {
     setDigits(Array(OTP_LENGTH).fill(''))
     setStatus('idle')
     setMessage('')
+    setError(null)
     setDetail(null)
     inputRefs.current[0]?.focus()
+  }
+
+  function isFormComplete() {
+    return digits.every(d => d !== '') && digits.join('').length === OTP_LENGTH
   }
 
   function handleDigitChange(index, value) {
@@ -30,9 +36,6 @@ export default function StoreGate() {
     setDigits(next)
     if (digit && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus()
-    }
-    if (next.every(d => d !== '') && next.join('').length === OTP_LENGTH) {
-      redeemOtp(next.join(''))
     }
   }
 
@@ -56,6 +59,7 @@ export default function StoreGate() {
   async function redeemOtp(code) {
     setStatus('loading')
     setMessage('')
+    setError(null)
     setDetail(null)
 
     const { data, error } = await supabase.rpc('redeem_store_gate_otp', {
@@ -64,8 +68,17 @@ export default function StoreGate() {
 
     if (error) {
       setStatus('error')
-      setMessage(error.message)
-      setTimeout(resetForm, 2500)
+      setError(error.message)
+      const message = error.message || 'Invalid or expired OTP'
+      
+      // Check for rate limit error
+      if (error.message?.includes('RATE_LIMITED')) {
+        setMessage('Too many attempts. Please try again later.')
+        setTimeout(resetForm, 3000)
+      } else {
+        setMessage(message)
+        setTimeout(resetForm, 2500)
+      }
       return
     }
 
@@ -73,16 +86,22 @@ export default function StoreGate() {
     setDetail(data)
     setMessage(
       data.request_type === 'deposit'
-        ? `Items received — ${data.quantity} × ${data.item_name}`
-        : `Items issued — ${data.quantity} × ${data.item_name}`
+        ? `✓ Items received — ${data.quantity} × ${data.item_name}`
+        : `✓ Items issued — ${data.quantity} × ${data.item_name}`
     )
 
-    // Mock hardware unlock pulse
+    // Hardware unlock pulse
     if (data.unlock_signal && 'vibrate' in navigator) {
       navigator.vibrate([200, 100, 200])
     }
 
     setTimeout(resetForm, 5000)
+  }
+
+  function handleSubmit() {
+    if (isFormComplete()) {
+      redeemOtp(digits.join(''))
+    }
   }
 
   return (
@@ -127,18 +146,46 @@ export default function StoreGate() {
         </div>
 
         {status === 'loading' && (
-          <p className="text-brand-300 text-sm animate-pulse">Checking code…</p>
+          <p className="text-brand-300 text-sm animate-pulse">Verifying code…</p>
         )}
+        
         {message && (
-          <p className={`text-sm font-medium ${
-            status === 'success' ? 'text-green-400' : 'text-red-400'
+          <p className={`text-sm font-medium mb-4 ${
+            status === 'success' ? 'text-green-400' : 
+            status === 'error' ? 'text-red-400' : 
+            'text-slate-300'
           }`}>
             {message}
           </p>
         )}
-        {status === 'success' && detail?.unlock_signal && (
-          <p className="text-xs text-slate-500 mt-2">Door unlock signal sent (demo)</p>
+
+        {error && status === 'error' && (
+          <p className="text-xs text-red-300 mb-4 bg-red-500/10 p-2 rounded">
+            {error}
+          </p>
         )}
+
+        {status === 'success' && detail?.unlock_signal && (
+          <p className="text-xs text-green-300 mb-4 flex items-center gap-2">
+            <span className="inline-block w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            Door unlock signal sent
+          </p>
+        )}
+
+        {/* Submit button - only show when form is complete and not processing */}
+        {!isFormComplete() ? (
+          <p className="text-slate-400 text-xs text-center mb-6">
+            {digits.filter(d => d !== '').length} / {OTP_LENGTH}
+          </p>
+        ) : status === 'idle' ? (
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="w-full mb-4 py-3 rounded-lg bg-brand-500 hover:bg-brand-600 text-white font-medium transition-colors"
+          >
+            Verify Code
+          </button>
+        ) : null}
 
         {(status === 'error' || status === 'success') && (
           <button

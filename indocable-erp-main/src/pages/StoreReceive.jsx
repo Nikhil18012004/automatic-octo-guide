@@ -4,19 +4,20 @@ import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  PackagePlus, Search, X, Image, MapPin, Plus, ChevronDown
+  PackagePlus, Plus, ChevronDown
 } from 'lucide-react'
 import AccessDenied from '../components/AccessDenied'
+import StoreItemSearchDropdown from '../components/StoreItemSearchDropdown'
+import { useStoreForm } from '../hooks/useStoreForm'
+import { groupLocationsByStore } from '../lib/storeLocationUtils'
+import { STORE_ROLES, hasStoreAccess } from '../lib/storeRoles'
+import { STORE_CATEGORIES, STORE_UNITS, QUANTITY_RULES, FORM_DEFAULTS } from '../lib/storeConstants'
 
-const ALLOWED_ROLES = ['owner', 'admin', 'procurement', 'security_guard']
-const CATEGORIES = ['Electrical', 'Mechanical', 'Tools', 'Consumables', 'Hardware', 'Safety', 'Other']
-const UNITS = ['pcs', 'kg', 'm', 'box', 'roll', 'set', 'ltr']
-
-const TODAY = new Date().toISOString().split('T')[0]
+const ALLOWED_ROLES = STORE_ROLES.RECEIVE
 
 const EMPTY_FORM = {
   item_id: '',
-  receipt_date: TODAY,
+  receipt_date: FORM_DEFAULTS.TODAY,
   quantity: '',
   unit_price: '',
   supplier_name: '',
@@ -29,8 +30,8 @@ const EMPTY_FORM = {
 const EMPTY_ITEM_FORM = {
   name: '',
   description: '',
-  category: 'Electrical',
-  unit: 'pcs',
+  category: STORE_CATEGORIES[0],
+  unit: STORE_UNITS[0],
 }
 
 export default function StoreReceive({ profile }) {
@@ -38,13 +39,11 @@ export default function StoreReceive({ profile }) {
 
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const { form, updateField, resetForm, saving, setSaving } = useStoreForm(EMPTY_FORM)
+  
   const [items, setItems] = useState([])
   const [locations, setLocations] = useState([])
-  const [itemSearch, setItemSearch] = useState('')
-  const [showItemDropdown, setShowItemDropdown] = useState(false)
   const [selectedItem, setSelectedItem] = useState(null)
-  const [form, setForm] = useState(EMPTY_FORM)
-  const [saving, setSaving] = useState(false)
 
   // Bill image
   const [billFile, setBillFile] = useState(null)
@@ -56,9 +55,6 @@ export default function StoreReceive({ profile }) {
   const [showItemModal, setShowItemModal] = useState(false)
   const [itemForm, setItemForm] = useState(EMPTY_ITEM_FORM)
   const [savingItem, setSavingItem] = useState(false)
-
-  const itemSearchRef = useRef(null)
-  const dropdownRef = useRef(null)
 
   const fetchItems = useCallback(async () => {
     const { data } = await supabase
@@ -82,42 +78,16 @@ export default function StoreReceive({ profile }) {
 
   useEffect(() => { fetchItems(); fetchLocations() }, [fetchItems, fetchLocations])
 
-  const locationGroups = locations.reduce((acc, loc) => {
-    if (!acc[loc.store_code]) acc[loc.store_code] = { store_name: loc.store_name, zones: [] }
-    acc[loc.store_code].zones.push(loc)
-    return acc
-  }, {})
+  const locationGroups = groupLocationsByStore(locations)
 
   // Close dropdown on outside click
   useEffect(() => {
     function handleClick(e) {
-      if (
-        dropdownRef.current && !dropdownRef.current.contains(e.target) &&
-        itemSearchRef.current && !itemSearchRef.current.contains(e.target)
-      ) {
-        setShowItemDropdown(false)
-      }
+      // Removed - handled by StoreItemSearchDropdown component
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
-
-  const filteredItems = items.filter(i =>
-    i.name.toLowerCase().includes(itemSearch.toLowerCase())
-  )
-
-  function selectItem(item) {
-    setSelectedItem(item)
-    setItemSearch(item.name)
-    setForm(f => ({ ...f, item_id: item.id }))
-    setShowItemDropdown(false)
-  }
-
-  function clearItem() {
-    setSelectedItem(null)
-    setItemSearch('')
-    setForm(f => ({ ...f, item_id: '' }))
-  }
 
   function handleBillSelect(e) {
     const file = e.target.files?.[0]

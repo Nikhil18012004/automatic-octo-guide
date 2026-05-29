@@ -38,6 +38,7 @@ import StoreHistory from './pages/StoreHistory'
 import StoreLocationManager from './pages/StoreLocationManager'
 import StoreGateRequest from './pages/StoreGateRequest'
 import StoreGate from './pages/StoreGate'
+import StoreRequests from './pages/StoreRequests'
 import Layout from './components/Layout'
 import CatalogAdmin from './pages/CatalogAdmin'
 import EnquiryAdmin from './pages/EnquiryAdmin'
@@ -221,6 +222,7 @@ on conflict (id) do nothing;`}
               <Route path="/store/history"   element={<StoreHistory profile={profile} />} />
               <Route path="/store/locations" element={<StoreLocationManager profile={profile} />} />
               <Route path="/store/request"   element={<StoreGateRequest profile={profile} />} />
+              <Route path="/store/requests"  element={<StoreRequests profile={profile} />} />
 
               {['owner', 'admin'].includes(profile.role) && (
                 <>

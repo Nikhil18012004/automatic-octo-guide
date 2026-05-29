@@ -10,7 +10,7 @@ import {
   BarChart2, Settings, Calendar, Clock, CheckCircle2,
   Umbrella, IndianRupee, TrendingUp, CreditCard, Factory,
   Truck, Wrench, ShoppingCart, Boxes, ChevronDown, ChevronRight,
-  Search, Undo2, ClipboardCheck, Globe, MessageSquare,
+  Search, Undo2, ClipboardCheck, Globe, MessageSquare, Eye,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { playNav, playClick } from '../lib/sound'
@@ -72,6 +72,7 @@ const NAV_GROUPS = [
       { to: '/store/history',  icon: History,        label: 'Movement Log',    roles: ['owner','admin','procurement','security_guard','production_head','operator','helper','qc_inspector'] },
       { to: '/store/locations',icon: MapPin,         label: 'Shelves & Racks', roles: ['owner','admin'] },
       { to: '/store/request',  icon: ShieldCheck,   label: 'Store Code Request', roles: ['owner','admin','procurement','security_guard','production_head','operator','helper'] },
+      { to: '/store/requests', icon: Eye,           label: 'Code Monitor', roles: ['owner','admin','procurement','security_guard','production_head','operator','helper'] },
     ],
   },
   {

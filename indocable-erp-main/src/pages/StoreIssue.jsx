@@ -4,25 +4,19 @@ import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  PackageMinus, Search, X, Image, AlertTriangle, CheckCircle2, MapPin
+  PackageMinus, AlertTriangle, CheckCircle2, MapPin
 } from 'lucide-react'
 import AccessDenied from '../components/AccessDenied'
+import { useStoreForm } from '../hooks/useStoreForm'
+import { groupLocationsByStore } from '../lib/storeLocationUtils'
+import { STORE_ROLES } from '../lib/storeRoles'
+import { ISSUE_PURPOSE_TYPES, QUANTITY_RULES, FORM_DEFAULTS } from '../lib/storeConstants'
 
-const ALLOWED_ROLES = ['owner', 'admin', 'procurement', 'production_head', 'operator', 'security_guard']
-
-const PURPOSE_TYPES = [
-  { value: 'production',   label: 'Production — sent to factory floor' },
-  { value: 'maintenance',  label: 'Maintenance / Repair' },
-  { value: 'sample',       label: 'Sample / Testing' },
-  { value: 'scrap',        label: 'Scrap / Write-off (damaged / expired)' },
-  { value: 'other',        label: 'Other' },
-]
-
-const TODAY = new Date().toISOString().split('T')[0]
+const ALLOWED_ROLES = STORE_ROLES.ISSUE
 
 const EMPTY_FORM = {
   item_id: '',
-  issue_date: TODAY,
+  issue_date: FORM_DEFAULTS.TODAY,
   quantity: '',
   purpose_type: 'production',
   purpose: '',
@@ -36,15 +30,13 @@ export default function StoreIssue({ profile }) {
 
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const { form, updateField, resetForm, saving, setSaving } = useStoreForm(EMPTY_FORM)
+  
   const [items, setItems] = useState([])
   const [locations, setLocations] = useState([])
-  const [itemSearch, setItemSearch] = useState('')
-  const [showItemDropdown, setShowItemDropdown] = useState(false)
   const [selectedItem, setSelectedItem] = useState(null)
   const [currentStock, setCurrentStock] = useState(null)
   const [loadingStock, setLoadingStock] = useState(false)
-  const [form, setForm] = useState(EMPTY_FORM)
-  const [saving, setSaving] = useState(false)
   const [qtyError, setQtyError] = useState('')
 
   const itemSearchRef = useRef(null)
@@ -72,11 +64,7 @@ export default function StoreIssue({ profile }) {
 
   useEffect(() => { fetchItems(); fetchLocations() }, [fetchItems, fetchLocations])
 
-  const locationGroups = locations.reduce((acc, loc) => {
-    if (!acc[loc.store_code]) acc[loc.store_code] = { store_name: loc.store_name, zones: [] }
-    acc[loc.store_code].zones.push(loc)
-    return acc
-  }, {})
+  const locationGroups = groupLocationsByStore(locations)
 
   // Close dropdown on outside click
   useEffect(() => {
