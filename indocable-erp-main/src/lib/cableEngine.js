@@ -283,10 +283,11 @@ export function calcQuotation(p) {
   const bind_d = r.dia_over_laidup
   r.t_bind = p.binding_tape_t ?? 0.25
   let bind_wt = 0
+  const bind_layers = p.binding_tape_layers ?? 1
   if (p.binding_tape_surface_density) {
-    bind_wt = calcTapeWeightPerKm(bind_d, r.t_bind, p.binding_tape_width ?? 10, p.binding_tape_overlap ?? 25, 1, p.binding_tape_surface_density)
+    bind_wt = calcTapeWeightPerKm(bind_d, r.t_bind, p.binding_tape_width ?? 10, p.binding_tape_overlap ?? 25, bind_layers, p.binding_tape_surface_density)
   } else if (p.binding_tape_density) {
-    bind_wt = calcVolTapeWeightPerKm(bind_d, r.t_bind, p.binding_tape_width ?? 10, p.binding_tape_overlap ?? 25, 1, p.binding_tape_density)
+    bind_wt = calcVolTapeWeightPerKm(bind_d, r.t_bind, p.binding_tape_width ?? 10, p.binding_tape_overlap ?? 25, bind_layers, p.binding_tape_density)
   }
   r.wt_binding_per_km = bind_wt
   r.wt_binding_total = bind_wt * p.order_km * (1 + (p.binding_wastage ?? 1) / 100)

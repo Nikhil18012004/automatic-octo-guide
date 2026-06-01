@@ -100,9 +100,9 @@ const ALL_FEATURES = [
     roles: ['owner','admin','procurement','security_guard','production_head','operator','helper','qc_inspector'],
   },
   {
-    to: '/store/receive',
+    to: '/store/request?mode=inward',
     icon: PackagePlus,
-    label: 'Receive Stock',
+    label: 'Store Inward',
     desc: 'Accept items into store',
     gradient: 'from-teal-500 to-teal-700',
     bg: 'bg-teal-50',
@@ -110,9 +110,9 @@ const ALL_FEATURES = [
     roles: ['owner','admin','procurement','security_guard'],
   },
   {
-    to: '/store/issue',
+    to: '/store/request?mode=outward',
     icon: PackageMinus,
-    label: 'Issue Item',
+    label: 'Store Outward',
     desc: 'Dispatch items from store',
     gradient: 'from-amber-500 to-amber-700',
     bg: 'bg-amber-50',

@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabase'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
@@ -65,7 +66,7 @@ export default function StoreHistory({ profile }) {
         .from('store_receipts')
         .select(`
           id, receipt_date, quantity, unit_price, bill_no, bill_image_url,
-          location_code, verified_at, created_at,
+          location_code, verified_at, created_at, txn_type,
           store_items(name, unit, item_image_url),
           received_by_profile:received_by(full_name),
           verified_by_profile:verified_by(full_name)
@@ -75,7 +76,7 @@ export default function StoreHistory({ profile }) {
         .from('store_issues')
         .select(`
           id, issue_date, quantity, purpose, issued_to_name,
-          location_from, notes, created_at,
+          location_from, notes, created_at, purpose_type,
           store_items(name, unit, item_image_url),
           issued_by_profile:issued_by(full_name)
         `)
@@ -91,6 +92,25 @@ export default function StoreHistory({ profile }) {
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  // Focus/highlight a movement when opened from the Code Monitor
+  const [searchParams] = useSearchParams()
+  const focusParam = searchParams.get('focus') // e.g. "store_receipts:123"
+  const [focusTable, focusId] = focusParam ? focusParam.split(':') : [null, null]
+  const focusRef = useRef(null)
+
+  useEffect(() => {
+    if (!focusParam) return
+    setActiveTab(focusTable === 'store_issues' ? 'issues' : 'receipts')
+  }, [focusParam, focusTable])
+
+  useEffect(() => {
+    if (!focusId || loading) return
+    const id = setTimeout(() => focusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200)
+    return () => clearTimeout(id)
+  }, [focusId, loading, activeTab, receipts, issues])
+
+  const isFocused = (table, id) => focusTable === table && String(id) === String(focusId)
 
   function matchesSearch(record, nameField = 'store_items') {
     const name = (record[nameField]?.name || '').toLowerCase()
@@ -245,7 +265,9 @@ export default function StoreHistory({ profile }) {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredReceipts.map(r => (
-                    <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={r.id}
+                      ref={isFocused('store_receipts', r.id) ? focusRef : null}
+                      className={`transition-colors ${isFocused('store_receipts', r.id) ? 'bg-brand-50 ring-2 ring-inset ring-brand-400' : 'hover:bg-gray-50'}`}>
                       <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
                         {formatDate(r.receipt_date)}
                       </td>
@@ -355,7 +377,9 @@ export default function StoreHistory({ profile }) {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredIssues.map(i => (
-                    <tr key={i.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={i.id}
+                      ref={isFocused('store_issues', i.id) ? focusRef : null}
+                      className={`transition-colors ${isFocused('store_issues', i.id) ? 'bg-brand-50 ring-2 ring-inset ring-brand-400' : 'hover:bg-gray-50'}`}>
                       <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
                         {formatDate(i.issue_date)}
                       </td>

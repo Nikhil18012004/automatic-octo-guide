@@ -10,7 +10,7 @@ import {
   BarChart2, Settings, Calendar, Clock, CheckCircle2,
   Umbrella, IndianRupee, TrendingUp, CreditCard, Factory,
   Truck, Wrench, ShoppingCart, Boxes, ChevronDown, ChevronRight,
-  Search, Undo2, ClipboardCheck, Globe, MessageSquare, Eye,
+  Search, Undo2, ClipboardCheck, Globe, MessageSquare, Eye, ArrowDownUp,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { playNav, playClick } from '../lib/sound'
@@ -65,13 +65,11 @@ const NAV_GROUPS = [
     items: [
       { to: '/store',          icon: Warehouse,      label: 'Store',           roles: ['owner','admin','procurement','security_guard','production_head','operator','helper','qc_inspector'] },
       { to: '/store/items',    icon: Tag,            label: 'Items List',      roles: ['owner','admin','procurement','security_guard','production_head','operator','helper','qc_inspector'] },
-      { to: '/store/receive',  icon: PackagePlus,    label: 'Store Inward',    roles: ['owner','admin','procurement','security_guard'] },
-      { to: '/store/issue',    icon: PackageMinus,   label: 'Store Outward',   roles: ['owner','admin','procurement','security_guard','production_head','operator'] },
+      { to: '/store/request',  icon: ArrowDownUp,    label: 'Store Inward/Outward', roles: ['owner','admin','procurement','security_guard','production_head','operator'] },
       { to: '/store/return',   icon: Undo2,          label: 'Return Items',    roles: ['owner','admin','procurement','security_guard','production_head','operator'] },
       { to: '/store/adjust',   icon: ClipboardCheck, label: 'Stock Count',     roles: ['owner','admin'] },
       { to: '/store/history',  icon: History,        label: 'Movement Log',    roles: ['owner','admin','procurement','security_guard','production_head','operator','helper','qc_inspector'] },
       { to: '/store/locations',icon: MapPin,         label: 'Shelves & Racks', roles: ['owner','admin'] },
-      { to: '/store/request',  icon: ShieldCheck,   label: 'Store Code Request', roles: ['owner','admin','procurement','security_guard','production_head','operator','helper'] },
       { to: '/store/requests', icon: Eye,           label: 'Code Monitor', roles: ['owner','admin','procurement','security_guard','production_head','operator','helper'] },
     ],
   },

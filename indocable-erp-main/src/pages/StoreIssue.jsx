@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  PackageMinus, AlertTriangle, CheckCircle2, MapPin
+  PackageMinus, AlertTriangle, CheckCircle2, MapPin, Search, X, Image
 } from 'lucide-react'
 import AccessDenied from '../components/AccessDenied'
 import { useStoreForm } from '../hooks/useStoreForm'
@@ -30,14 +30,16 @@ export default function StoreIssue({ profile }) {
 
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const { form, updateField, resetForm, saving, setSaving } = useStoreForm(EMPTY_FORM)
-  
+  const { form, setForm, updateField, resetForm, saving, setSaving } = useStoreForm(EMPTY_FORM)
+
   const [items, setItems] = useState([])
   const [locations, setLocations] = useState([])
   const [selectedItem, setSelectedItem] = useState(null)
   const [currentStock, setCurrentStock] = useState(null)
   const [loadingStock, setLoadingStock] = useState(false)
   const [qtyError, setQtyError] = useState('')
+  const [itemSearch, setItemSearch] = useState('')
+  const [showItemDropdown, setShowItemDropdown] = useState(false)
 
   const itemSearchRef = useRef(null)
   const dropdownRef = useRef(null)
@@ -150,7 +152,7 @@ export default function StoreIssue({ profile }) {
       issue_date:     form.issue_date,
       quantity:       Number(form.quantity),
       purpose_type:   form.purpose_type,
-      purpose:        form.purpose.trim() || PURPOSE_TYPES.find(p => p.value === form.purpose_type)?.label || form.purpose_type,
+      purpose:        form.purpose.trim() || ISSUE_PURPOSE_TYPES.find(p => p.value === form.purpose_type)?.label || form.purpose_type,
       issued_to_name: form.issued_to_name.trim(),
       location_from:  form.location_from.trim() || null,
       notes:          form.notes.trim() || null,
@@ -313,7 +315,7 @@ export default function StoreIssue({ profile }) {
               <label className="label">Reason / Type *</label>
               <select required className="input" value={form.purpose_type}
                 onChange={e => setForm(f => ({ ...f, purpose_type: e.target.value }))}>
-                {PURPOSE_TYPES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                {ISSUE_PURPOSE_TYPES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
             </div>
             <div>

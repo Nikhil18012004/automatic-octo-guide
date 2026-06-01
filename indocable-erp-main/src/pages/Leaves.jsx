@@ -104,9 +104,15 @@ export default function Leaves({ profile }) {
   // ── Approve ────────────────────────────────────────────────────────────────
   async function approveRequest(req) {
     setSaving(true)
-    await supabase.from('leave_requests').update({
+    // Atomic guard: only transition pending → approved. If another click already
+    // approved it, no row matches and we bail before touching the balance again.
+    const { data: updated, error: updErr } = await supabase.from('leave_requests').update({
       status: 'approved', approved_by: profile?.id, approved_at: new Date().toISOString(),
-    }).eq('id', req.id)
+    }).eq('id', req.id).eq('status', 'pending').select()
+    if (updErr) { setSaving(false); toast.error(updErr.message); return }
+    if (!updated || updated.length === 0) {
+      setSaving(false); toast.error('This request was already processed'); fetchAll(); return
+    }
 
     // Update used balance
     if (req.leave_type !== 'unpaid') {

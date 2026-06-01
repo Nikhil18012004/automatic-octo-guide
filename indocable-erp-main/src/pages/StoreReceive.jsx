@@ -4,10 +4,9 @@ import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  PackagePlus, Plus, ChevronDown
+  PackagePlus, Plus, ChevronDown, Search, X, Image, MapPin
 } from 'lucide-react'
 import AccessDenied from '../components/AccessDenied'
-import StoreItemSearchDropdown from '../components/StoreItemSearchDropdown'
 import { useStoreForm } from '../hooks/useStoreForm'
 import { groupLocationsByStore } from '../lib/storeLocationUtils'
 import { STORE_ROLES, hasStoreAccess } from '../lib/storeRoles'
@@ -39,11 +38,15 @@ export default function StoreReceive({ profile }) {
 
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const { form, updateField, resetForm, saving, setSaving } = useStoreForm(EMPTY_FORM)
-  
+  const { form, setForm, updateField, resetForm, saving, setSaving } = useStoreForm(EMPTY_FORM)
+
   const [items, setItems] = useState([])
   const [locations, setLocations] = useState([])
   const [selectedItem, setSelectedItem] = useState(null)
+  const [itemSearch, setItemSearch] = useState('')
+  const [showItemDropdown, setShowItemDropdown] = useState(false)
+  const itemSearchRef = useRef(null)
+  const dropdownRef = useRef(null)
 
   // Bill image
   const [billFile, setBillFile] = useState(null)
@@ -83,11 +86,31 @@ export default function StoreReceive({ profile }) {
   // Close dropdown on outside click
   useEffect(() => {
     function handleClick(e) {
-      // Removed - handled by StoreItemSearchDropdown component
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target) &&
+        itemSearchRef.current && !itemSearchRef.current.contains(e.target)
+      ) setShowItemDropdown(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  const filteredItems = items.filter(i =>
+    i.name.toLowerCase().includes(itemSearch.toLowerCase())
+  )
+
+  function selectItem(item) {
+    setSelectedItem(item)
+    setItemSearch(item.name)
+    setForm(f => ({ ...f, item_id: item.id }))
+    setShowItemDropdown(false)
+  }
+
+  function clearItem() {
+    setSelectedItem(null)
+    setItemSearch('')
+    setForm(f => ({ ...f, item_id: '' }))
+  }
 
   function handleBillSelect(e) {
     const file = e.target.files?.[0]
@@ -506,13 +529,13 @@ export default function StoreReceive({ profile }) {
                 <div>
                   <label className="label">{t('receive.quickAdd.category')}</label>
                   <select className="input" value={itemForm.category} onChange={e => setItemForm(f => ({ ...f, category: e.target.value }))}>
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    {STORE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="label">{t('receive.quickAdd.unit')}</label>
                   <select className="input" value={itemForm.unit} onChange={e => setItemForm(f => ({ ...f, unit: e.target.value }))}>
-                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                    {STORE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
               </div>

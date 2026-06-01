@@ -282,7 +282,7 @@ export default function Payroll({ profile }) {
 
       const [{ data: attData }, { data: advances }] = await Promise.all([
         supabase.from('attendance')
-          .select('employee_id, status, overtime_hours')
+          .select('employee_id, status, ot_hours')
           .in('employee_id', empIds)
           .gte('date', start)
           .lte('date', end),
@@ -304,7 +304,7 @@ export default function Payroll({ profile }) {
         if (!attMap[a.employee_id]) attMap[a.employee_id] = { present_days: 0, half_days: 0, ot_hours: 0, total_days: totalWorkingDays }
         if (a.status === 'present')   attMap[a.employee_id].present_days++
         if (a.status === 'half_day')  attMap[a.employee_id].half_days++
-        if (a.overtime_hours > 0)     attMap[a.employee_id].ot_hours += parseFloat(a.overtime_hours) || 0
+        if (a.ot_hours > 0)           attMap[a.employee_id].ot_hours += parseFloat(a.ot_hours) || 0
       })
 
       const rows = employees.map(emp => {
@@ -356,10 +356,14 @@ export default function Payroll({ profile }) {
   }
 
   async function markPaid(empId) {
-    const { error } = await supabase.from('payroll').update({ status: 'paid', paid_date: new Date().toISOString().slice(0,10) })
+    const paidDate = new Date().toISOString().slice(0,10)
+    const { data, error } = await supabase.from('payroll')
+      .update({ status: 'paid', paid_date: paidDate })
       .eq('employee_id', empId).eq('month', monthStr)
+      .select()
     if (error) { toast.error('Failed to mark paid'); return }
-    setPayrollRows(rows => rows.map(r => r.emp.id === empId ? { ...r, status: 'paid', paid_date: new Date().toISOString().slice(0,10) } : r))
+    if (!data || data.length === 0) { toast.error('Save the payroll before marking it paid'); return }
+    setPayrollRows(rows => rows.map(r => r.emp.id === empId ? { ...r, status: 'paid', paid_date: paidDate } : r))
     toast.success('Marked as paid')
   }
 

@@ -2,12 +2,13 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
-import { Undo2, CheckCircle2 } from 'lucide-react'
+import { Undo2, CheckCircle2, Search, X, Image, MapPin, Copy, Clock } from 'lucide-react'
 import AccessDenied from '../components/AccessDenied'
 import { useStoreForm } from '../hooks/useStoreForm'
 import { groupLocationsByStore } from '../lib/storeLocationUtils'
 import { STORE_ROLES } from '../lib/storeRoles'
 import { RETURN_REASON_TYPES, QUANTITY_RULES, FORM_DEFAULTS } from '../lib/storeConstants'
+import { addCode, isCodeLive, CODE_PATTERN, CODE_TTL_MINUTES } from '../lib/gateCodes'
 
 const ALLOWED_ROLES = STORE_ROLES.RETURN
 
@@ -30,9 +31,73 @@ export default function StoreReturn({ profile }) {
   const [locations, setLocations] = useState([])
   const [selectedItem, setSelectedItem] = useState(null)
   const [currentStock, setCurrentStock] = useState(null)
+  const [itemSearch, setItemSearch] = useState('')
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [activeCode, setActiveCode] = useState(null)
+  const [timeRemaining, setTimeRemaining] = useState(null)
+  const [codePrompt, setCodePrompt] = useState(null)
+  const [codeInput, setCodeInput] = useState('')
+  const [codeError, setCodeError] = useState('')
 
   const searchRef = useRef(null)
   const dropdownRef = useRef(null)
+
+  // Code expiry countdown
+  useEffect(() => {
+    if (!activeCode?.expires_at) { setTimeRemaining(null); return }
+    const tick = () => {
+      const diff = Math.max(0, Math.floor((new Date(activeCode.expires_at).getTime() - Date.now()) / 1000))
+      if (diff <= 0) { setTimeRemaining(null); setActiveCode(null) }
+      else setTimeRemaining(diff)
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [activeCode])
+
+  function openCodePrompt(ctx) {
+    setCodePrompt({ ...ctx, item_id: selectedItem?.id, item_name: selectedItem?.name, unit: selectedItem?.unit })
+    setCodeInput('')
+    setCodeError('')
+  }
+
+  function confirmCode(e) {
+    e.preventDefault()
+    const code = codeInput.trim()
+    if (!CODE_PATTERN.test(code)) { setCodeError('Code must be exactly 8 letters/numbers'); return }
+    if (isCodeLive(code)) { setCodeError('That code is already active — pick another'); return }
+    const rec = addCode({
+      code,
+      type: 'return',
+      item_id: codePrompt.item_id,
+      item_name: codePrompt.item_name,
+      unit: codePrompt.unit,
+      quantity: codePrompt.quantity,
+      location: codePrompt.location,
+      generated_by_id: profile.id,
+      generated_by_name: profile.full_name,
+      movement_table: codePrompt.movement_table,
+      movement_id: codePrompt.movement_id,
+    })
+    setActiveCode(rec)
+    setCodePrompt(null)
+    setCodeInput('')
+    // Reset the form for the next entry
+    setSelectedItem(null); setItemSearch(''); setCurrentStock(null); setForm(EMPTY_FORM)
+    toast.success('Gate code saved')
+  }
+
+  function copyCode() {
+    if (!activeCode?.code) return
+    navigator.clipboard.writeText(activeCode.code)
+    toast.success('Code copied')
+  }
+
+  function fmtRemaining(s) {
+    if (s === null || s === undefined) return ''
+    return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`
+  }
+  const codeExpiringSoon = timeRemaining !== null && timeRemaining <= 60
 
   const fetchItems = useCallback(async () => {
     const { data } = await supabase
@@ -120,35 +185,110 @@ export default function StoreReturn({ profile }) {
       verified_by:  profile.id,
     }
 
-    const { error } = await supabase.from('store_receipts').insert([{
+    const returnQty = Number(form.quantity)
+    const returnLocation = form.location_code || ''
+    let movementId = null
+
+    const { data: inserted, error } = await supabase.from('store_receipts').insert([{
       ...basePayload,
       txn_type:          'return',
       returned_by_name:  form.returned_by_name.trim(),
-    }])
+    }]).select('id').single()
 
     if (error && (error.message.includes('txn_type') || error.message.includes('returned_by_name'))) {
       // DB migration not yet run — insert without new columns
-      const { error: e2 } = await supabase.from('store_receipts').insert([{
+      const { data: inserted2, error: e2 } = await supabase.from('store_receipts').insert([{
         ...basePayload,
         bill_no: `RETURN-${Date.now()}`,
         notes:   `[RETURN by ${form.returned_by_name}] ${form.return_reason}${form.notes ? '. ' + form.notes : ''}`,
-      }])
+      }]).select('id').single()
       setSaving(false)
       if (e2) { toast.error('Failed: ' + e2.message); return }
+      movementId = inserted2?.id
     } else if (error) {
       setSaving(false)
       toast.error('Failed to record return: ' + error.message)
       return
     } else {
       setSaving(false)
+      movementId = inserted?.id
     }
 
     toast.success('Return recorded! Stock updated.')
-    navigate('/store')
+    openCodePrompt({
+      quantity: returnQty,
+      location: returnLocation,
+      movement_table: 'store_receipts',
+      movement_id: movementId,
+    })
   }
 
   return (
     <div className="max-w-2xl mx-auto">
+
+      {/* Generated gate code */}
+      {activeCode && (
+        <div className={`mb-6 rounded-xl border-2 p-6 text-center ${codeExpiringSoon ? 'border-orange-300 bg-orange-50' : 'border-brand-200 bg-brand-50'}`}>
+          <p className={`text-sm font-medium mb-2 ${codeExpiringSoon ? 'text-orange-800' : 'text-brand-800'}`}>
+            Gate code — enter this at the store access monitor
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <span className={`text-4xl font-mono font-bold tracking-[0.25em] ${codeExpiringSoon ? 'text-orange-700' : 'text-brand-700'}`}>
+              {activeCode.code}
+            </span>
+            <button type="button" onClick={copyCode} className={`p-2 rounded-lg transition-colors ${codeExpiringSoon ? 'hover:bg-orange-100' : 'hover:bg-brand-100'}`} title="Copy">
+              <Copy size={18} className={codeExpiringSoon ? 'text-orange-600' : 'text-brand-600'} />
+            </button>
+          </div>
+          <p className={`text-sm font-mono font-bold mt-3 flex items-center justify-center gap-2 ${codeExpiringSoon ? 'text-orange-700' : 'text-brand-700'}`}>
+            <Clock size={14} /> {fmtRemaining(timeRemaining)}
+          </p>
+          <button type="button" className="mt-4 text-sm text-brand-700 underline hover:no-underline" onClick={() => { setActiveCode(null); setTimeRemaining(null); navigate('/store') }}>
+            Done
+          </button>
+        </div>
+      )}
+
+      {/* Code entry step */}
+      {codePrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Set the gate code</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Return · {codePrompt.quantity} {codePrompt.unit || ''} of {codePrompt.item_name}
+              </p>
+            </div>
+            <form onSubmit={confirmCode} className="px-6 py-5 space-y-4">
+              <div>
+                <label className="label">Your 8-character code *</label>
+                <input
+                  autoFocus
+                  className="input font-mono tracking-widest text-center text-lg uppercase"
+                  placeholder="e.g. A1B2C3D4"
+                  maxLength={8}
+                  value={codeInput}
+                  onChange={e => { setCodeInput(e.target.value.replace(/[^A-Za-z0-9]/g, '')); setCodeError('') }}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Letters and/or numbers, exactly 8 characters. Valid for {CODE_TTL_MINUTES} minutes.
+                </p>
+                {codeError && <p className="text-xs text-red-600 mt-1">{codeError}</p>}
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="submit" className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                  Generate Code
+                </button>
+                <button type="button" onClick={() => { setCodePrompt(null); navigate('/store') }}
+                  className="flex-1 border border-gray-300 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+                  Skip
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-3 mb-6">
         <div className="bg-blue-100 p-2.5 rounded-xl">
           <Undo2 className="text-blue-600" size={22} />
@@ -244,7 +384,7 @@ export default function StoreReturn({ profile }) {
             <select required className="input" value={form.return_reason}
               onChange={e => setForm(f => ({ ...f, return_reason: e.target.value }))}>
               <option value="">Select reason…</option>
-              {RETURN_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+              {RETURN_REASON_TYPES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </div>
 

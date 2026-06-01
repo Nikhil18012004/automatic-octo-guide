@@ -30,14 +30,13 @@ import PurchaseOrders from './pages/PurchaseOrders'
 import JobWork from './pages/JobWork'
 import StoreRoom from './pages/StoreRoom'
 import StoreItems from './pages/StoreItems'
-import StoreReceive from './pages/StoreReceive'
-import StoreIssue from './pages/StoreIssue'
+import StoreInOut from './pages/StoreInOut'
 import StoreReturn from './pages/StoreReturn'
 import StoreAdjust from './pages/StoreAdjust'
 import StoreHistory from './pages/StoreHistory'
 import StoreLocationManager from './pages/StoreLocationManager'
-import StoreGateRequest from './pages/StoreGateRequest'
 import StoreGate from './pages/StoreGate'
+import StoreAccess from './pages/StoreAccess'
 import StoreRequests from './pages/StoreRequests'
 import Layout from './components/Layout'
 import CatalogAdmin from './pages/CatalogAdmin'
@@ -175,8 +174,10 @@ on conflict (id) do nothing;`}
     <>
       <Toaster position="top-right" />
       <Routes>
-        {/* Physical store monitor — no ERP chrome, OTP only */}
+        {/* Physical store monitor — no ERP chrome */}
         <Route path="/store-gate" element={<StoreGate />} />
+        {/* Store access door monitor (login + code entry) */}
+        <Route path="/store-access" element={<StoreAccess />} />
 
         {/* Login — redirect to correct home based on role */}
         <Route
@@ -215,13 +216,14 @@ on conflict (id) do nothing;`}
 
               <Route path="/store"           element={<StoreRoom profile={profile} />} />
               <Route path="/store/items"     element={<StoreItems profile={profile} />} />
-              <Route path="/store/receive"   element={<StoreReceive profile={profile} />} />
-              <Route path="/store/issue"     element={<StoreIssue profile={profile} />} />
+              <Route path="/store/request"   element={<StoreInOut profile={profile} />} />
+              {/* Old separate Inward/Outward pages now redirect to the merged page */}
+              <Route path="/store/receive"   element={<Navigate to="/store/request?mode=inward" replace />} />
+              <Route path="/store/issue"     element={<Navigate to="/store/request?mode=outward" replace />} />
               <Route path="/store/return"    element={<StoreReturn profile={profile} />} />
               <Route path="/store/adjust"    element={<StoreAdjust profile={profile} />} />
               <Route path="/store/history"   element={<StoreHistory profile={profile} />} />
               <Route path="/store/locations" element={<StoreLocationManager profile={profile} />} />
-              <Route path="/store/request"   element={<StoreGateRequest profile={profile} />} />
               <Route path="/store/requests"  element={<StoreRequests profile={profile} />} />
 
               {['owner', 'admin'].includes(profile.role) && (

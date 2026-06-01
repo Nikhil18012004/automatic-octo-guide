@@ -2,8 +2,9 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
-import { ClipboardCheck, Search, X, Image, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { ClipboardCheck, Search, X, Image, TrendingUp, TrendingDown, Minus, Lock, Unlock, Clock } from 'lucide-react'
 import AccessDenied from '../components/AccessDenied'
+import { unlockStore, lockStore, getUnlockState, onCodesChange, STOCK_ACCESS_MINUTES } from '../lib/gateCodes'
 
 const ALLOWED_ROLES = ['owner', 'admin']
 const ADJUST_REASONS = [
@@ -35,6 +36,17 @@ export default function StoreAdjust({ profile }) {
 
   const searchRef = useRef(null)
   const dropdownRef = useRef(null)
+
+  // Store-access unlock window (30 min)
+  const [unlock, setUnlock] = useState(getUnlockState())
+  useEffect(() => {
+    const refresh = () => setUnlock(getUnlockState())
+    refresh()
+    const id = setInterval(refresh, 1000)
+    const off = onCodesChange(refresh)
+    return () => { clearInterval(id); off() }
+  }, [])
+  const fmtUnlock = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`
 
   const fetchItems = useCallback(async () => {
     const { data } = await supabase
@@ -315,6 +327,39 @@ export default function StoreAdjust({ profile }) {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Store Access — unlock the gate for a physical count */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mt-5">
+        <div className="flex items-center gap-3 mb-3">
+          <div className={`p-2 rounded-lg ${unlock.unlocked ? 'bg-green-100' : 'bg-gray-100'}`}>
+            {unlock.unlocked ? <Unlock className="text-green-600" size={18} /> : <Lock className="text-gray-500" size={18} />}
+          </div>
+          <div>
+            <h2 className="font-semibold text-gray-900 text-sm">Store Access</h2>
+            <p className="text-xs text-gray-500">
+              Unlock the store gate for {STOCK_ACCESS_MINUTES} minutes to do a physical count. It re-locks automatically when time runs out.
+            </p>
+          </div>
+        </div>
+        {unlock.unlocked ? (
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 flex items-center gap-1.5">
+              <Clock size={12} /> Unlocked — {fmtUnlock(unlock.secondsLeft)} left
+            </span>
+            <button type="button" onClick={() => lockStore()} className="text-sm text-red-600 underline hover:no-underline">
+              Lock now
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => unlockStore(STOCK_ACCESS_MINUTES, profile?.full_name || profile?.id)}
+            className="bg-purple-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors flex items-center gap-2"
+          >
+            <Unlock size={15} /> Unlock store for {STOCK_ACCESS_MINUTES} min
+          </button>
+        )}
       </div>
     </div>
   )

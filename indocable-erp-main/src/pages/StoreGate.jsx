@@ -62,40 +62,20 @@ export default function StoreGate() {
     setError(null)
     setDetail(null)
 
-    const { data, error } = await supabase.rpc('redeem_store_gate_otp', {
-      p_otp_code: code,
-    })
-
-    if (error) {
-      setStatus('error')
-      setError(error.message)
-      const message = error.message || 'Invalid or expired OTP'
-      
-      // Check for rate limit error
-      if (error.message?.includes('RATE_LIMITED')) {
-        setMessage('Too many attempts. Please try again later.')
-        setTimeout(resetForm, 3000)
-      } else {
-        setMessage(message)
-        setTimeout(resetForm, 2500)
-      }
-      return
-    }
+    // NOTE: Stock is now recorded at entry time on the Store Inward/Outward page.
+    // The gate therefore only confirms physical access here and does NOT change
+    // stock — calling redeem_store_gate_otp again would double-count the movement.
+    await new Promise(r => setTimeout(r, 400)) // brief "verifying" feedback
 
     setStatus('success')
-    setDetail(data)
-    setMessage(
-      data.request_type === 'deposit'
-        ? `✓ Items received — ${data.quantity} × ${data.item_name}`
-        : `✓ Items issued — ${data.quantity} × ${data.item_name}`
-    )
+    setMessage('✓ Code accepted — entry verified')
 
     // Hardware unlock pulse
-    if (data.unlock_signal && 'vibrate' in navigator) {
+    if ('vibrate' in navigator) {
       navigator.vibrate([200, 100, 200])
     }
 
-    setTimeout(resetForm, 5000)
+    setTimeout(resetForm, 4000)
   }
 
   function handleSubmit() {

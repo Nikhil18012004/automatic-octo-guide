@@ -104,10 +104,10 @@ export default function StoreRoom({ profile }) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
-          <button onClick={() => navigate('/store/receive')} className="btn-primary">
+          <button onClick={() => navigate('/store/request?mode=inward')} className="btn-primary">
             <PackagePlus size={15} /> Store Inward
           </button>
-          <button onClick={() => navigate('/store/issue')} className="btn-secondary">
+          <button onClick={() => navigate('/store/request?mode=outward')} className="btn-secondary">
             <PackageMinus size={15} /> Store Outward
           </button>
           <button onClick={() => navigate('/store/return')} className="btn-ghost px-3 py-2 text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-lg text-sm font-medium flex items-center gap-1.5">
@@ -165,7 +165,7 @@ export default function StoreRoom({ profile }) {
               {lowStockItems.length} item{lowStockItems.length !== 1 ? 's' : ''} need restocking
             </h2>
             <button
-              onClick={() => navigate('/store/receive')}
+              onClick={() => navigate('/store/request?mode=inward')}
               className="ml-auto text-xs text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1 rounded-lg font-semibold transition-colors"
             >
               Store Inward →
