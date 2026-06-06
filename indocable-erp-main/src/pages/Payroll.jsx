@@ -5,12 +5,11 @@ import {
   IndianRupee, Calculator, CheckCircle2, ChevronLeft, ChevronRight,
   Printer, X, RefreshCw, Download, AlertCircle, Clock
 } from 'lucide-react'
+import { gradient } from '../lib/format'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 function initials(n = '') { return n.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()||'?' }
-const GRADIENTS = ['from-brand-500 to-brand-700','from-emerald-500 to-teal-600','from-violet-500 to-purple-700','from-amber-500 to-orange-600','from-cyan-500 to-blue-600','from-rose-500 to-pink-600']
-function gradient(s=''){let h=0;for(const c of s)h=((h<<5)-h)+c.charCodeAt(0);return GRADIENTS[Math.abs(h)%GRADIENTS.length]}
 
 function workingDaysInMonth(year, month) {
   // Count Mon–Sat (exclude Sunday as default)

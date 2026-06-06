@@ -1,11 +1,11 @@
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '../supabase'
 import { RefreshCw, Users, TrendingUp, Calendar, BarChart2, IndianRupee, Clock } from 'lucide-react'
+import { fmtINR } from '../lib/format'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 function todayISO() { return new Date().toISOString().slice(0,10) }
-function fmtINR(n) { return '₹'+(Number(n)||0).toLocaleString('en-IN') }
 
 // Pure-CSS horizontal bar
 function Bar({ pct, color = 'bg-brand-500', height = 'h-2' }) {

@@ -23,6 +23,10 @@ function Badge({ children, color = 'gray' }) {
 
 export default function StoreLocationManager({ profile }) {
   if (!ALLOWED_ROLES.includes(profile?.role)) return <AccessDenied />
+  return <StoreLocationManagerInner profile={profile} />
+}
+
+function StoreLocationManagerInner({ profile }) {
 
   const [locations, setLocations]         = useState([])
   const [loading, setLoading]             = useState(true)

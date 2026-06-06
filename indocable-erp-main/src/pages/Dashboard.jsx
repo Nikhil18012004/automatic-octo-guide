@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import toast from 'react-hot-toast'
 import { supabase } from '../supabase'
 import {
   Package, AlertTriangle, TrendingDown, TrendingUp,
@@ -352,11 +353,10 @@ function LiveMarketWidget({ profile }) {
 
   async function saveVar(key, val, label, category) {
     const { data: existing } = await supabase.from('global_variables').select('id').eq('key', key).maybeSingle()
-    if (existing) {
-      await supabase.from('global_variables').update({ value: val }).eq('key', key)
-    } else {
-      await supabase.from('global_variables').insert({ key, value: val, label, category })
-    }
+    const { error } = existing
+      ? await supabase.from('global_variables').update({ value: val }).eq('key', key)
+      : await supabase.from('global_variables').insert({ key, value: val, label, category })
+    if (error) toast.error(error.message)
   }
 
   async function saveAl() {

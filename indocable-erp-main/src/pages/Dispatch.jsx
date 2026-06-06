@@ -4,13 +4,11 @@ import toast from 'react-hot-toast'
 import {
   Truck, Plus, RefreshCw, X, Save, Printer, Edit2,
   Users, Trash2, CheckCircle2, Search, MessageSquare,
-  Mail, Phone, Building2, MapPin, Star, Send,
+  Mail, Phone, Building2, MapPin, Star, Send, Package,
 } from 'lucide-react'
+import { gradient, fmtDate } from '../lib/format'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const GRADIENTS = ['from-brand-500 to-brand-700','from-emerald-500 to-teal-600','from-violet-500 to-purple-700','from-amber-500 to-orange-600','from-cyan-500 to-blue-600','from-rose-500 to-pink-600']
-function gradient(s=''){let h=0;for(const c of s)h=((h<<5)-h)+c.charCodeAt(0);return GRADIENTS[Math.abs(h)%GRADIENTS.length]}
-function fmtDate(d){return d?new Date(d+'T12:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'—'}
 function fmtPhone(p){return(p||'').replace(/[^0-9]/g,'')}
 function fmtWA(p){const d=fmtPhone(p);return d.length===10?'91'+d:d}
 
@@ -237,22 +235,27 @@ function QuoteModal({ challan, customer, items, agencies, quotes, onClose, onRef
     setSaving(agId)
     const existing = quotes.find(x=>x.agency_id===agId)
     const payload = { quoted_amount:q.amount||null, notes:q.notes||null, enquiry_sent:true, enquiry_sent_at:new Date().toISOString() }
-    if (existing) await supabase.from('transport_quotes').update(payload).eq('id',existing.id)
-    else await supabase.from('transport_quotes').insert({ dispatch_id:challan.id, agency_id:agId, ...payload })
-    updQ(agId,'sent',true)
+    const { error } = existing
+      ? await supabase.from('transport_quotes').update(payload).eq('id',existing.id)
+      : await supabase.from('transport_quotes').insert({ dispatch_id:challan.id, agency_id:agId, ...payload })
     setSaving(null)
+    if(error){ toast.error(error.message); return }
+    updQ(agId,'sent',true)
     toast.success('Quote saved')
   }
 
   async function selectQuote(agId, amount) {
     setSelecting(agId)
-    await supabase.from('transport_quotes').update({is_selected:false}).eq('dispatch_id',challan.id)
+    const clear = await supabase.from('transport_quotes').update({is_selected:false}).eq('dispatch_id',challan.id)
     const existing = quotes.find(x=>x.agency_id===agId)
-    if (existing) await supabase.from('transport_quotes').update({is_selected:true}).eq('id',existing.id)
-    else await supabase.from('transport_quotes').insert({ dispatch_id:challan.id, agency_id:agId, is_selected:true, quoted_amount:amount||null, enquiry_sent:true })
-    await supabase.from('dispatch_orders').update({ selected_agency_id:agId, agreed_rate:amount||null, status:'dispatched' }).eq('id',challan.id)
-    toast.success('Agency selected — challan marked as Dispatched')
+    const set = existing
+      ? await supabase.from('transport_quotes').update({is_selected:true}).eq('id',existing.id)
+      : await supabase.from('transport_quotes').insert({ dispatch_id:challan.id, agency_id:agId, is_selected:true, quoted_amount:amount||null, enquiry_sent:true })
+    const mark = await supabase.from('dispatch_orders').update({ selected_agency_id:agId, agreed_rate:amount||null, status:'dispatched' }).eq('id',challan.id)
     setSelecting(null)
+    const error = clear.error || set.error || mark.error
+    if(error){ toast.error(error.message); return }
+    toast.success('Agency selected — challan marked as Dispatched')
     onRefresh()
     onClose()
   }
@@ -412,14 +415,17 @@ function ChallanModal({ mode, challan, customers, prodOrders, profile, onSave, o
       if(isEdit){
         const {error} = await supabase.from('dispatch_orders').update(payload).eq('id',challan.id)
         if(error) throw error
-        await supabase.from('dispatch_items').delete().eq('dispatch_id',challan.id)
-        await supabase.from('dispatch_items').insert(mkItems(challan.id))
+        const {error:delErr} = await supabase.from('dispatch_items').delete().eq('dispatch_id',challan.id)
+        if(delErr) throw delErr
+        const {error:insErr} = await supabase.from('dispatch_items').insert(mkItems(challan.id))
+        if(insErr) throw insErr
         toast.success('Challan updated')
       } else {
         const challanNo = await genChallanNo()
         const {data:ch,error} = await supabase.from('dispatch_orders').insert({...payload, challan_number:challanNo, created_by:profile.id}).select().single()
         if(error) throw error
-        await supabase.from('dispatch_items').insert(mkItems(ch.id))
+        const {error:insErr} = await supabase.from('dispatch_items').insert(mkItems(ch.id))
+        if(insErr) throw insErr
         toast.success(`Challan ${challanNo} created`)
       }
       onSave()
@@ -695,6 +701,7 @@ export default function Dispatch({ profile }) {
 
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [trackSearch, setTrackSearch] = useState('')
 
   const [challanModal, setChallanModal]   = useState(null)
   const [quoteModal, setQuoteModal]       = useState(null)
@@ -713,7 +720,7 @@ export default function Dispatch({ profile }) {
         supabase.from('dispatch_orders').select('*, dispatch_items(*), transport_quotes(*)').order('created_at',{ascending:false}),
         supabase.from('customers').select('*').order('name'),
         supabase.from('transport_agencies').select('*').order('name'),
-        supabase.from('production_orders').select('id,order_number,product_name').order('order_number'),
+        supabase.from('production_orders').select('id,order_number,product_name,target_quantity,unit,status').order('order_number'),
       ])
       if(e1) throw e1
       setChallans(chData||[])
@@ -747,6 +754,47 @@ export default function Dispatch({ profile }) {
     return matchSearch && (filterStatus==='all' || ch.status===filterStatus)
   }),[challans,custMap,search,filterStatus])
 
+  // ── Order dispatch tracking ───────────────────────────────────────────────
+  // For each production order: how much was ordered, how much has been
+  // dispatched (summed across all non-cancelled challans), and what's left.
+  const orderTracking = useMemo(()=>{
+    const dispatchedByPo = {}
+    for (const ch of challans) {
+      if (ch.status==='cancelled') continue
+      for (const it of (ch.dispatch_items||[])) {
+        if (!it.production_order_id) continue
+        dispatchedByPo[it.production_order_id] =
+          (dispatchedByPo[it.production_order_id]||0) + (parseFloat(it.quantity)||0)
+      }
+    }
+    return prodOrders
+      .filter(po=>(parseFloat(po.target_quantity)||0) > 0)
+      .map(po=>{
+        const ordered    = parseFloat(po.target_quantity)||0
+        const dispatched = dispatchedByPo[po.id]||0
+        const remaining  = Math.max(0, ordered - dispatched)
+        const pct        = ordered>0 ? Math.min(100, Math.round((dispatched/ordered)*100)) : 0
+        const over       = dispatched > ordered ? dispatched - ordered : 0
+        return { ...po, ordered, dispatched, remaining, pct, over }
+      })
+      .sort((a,b)=>b.remaining - a.remaining)
+  },[challans,prodOrders])
+
+  const trackStats = useMemo(()=>({
+    pending:  orderTracking.filter(o=>o.dispatched===0).length,
+    partial:  orderTracking.filter(o=>o.dispatched>0 && o.remaining>0).length,
+    complete: orderTracking.filter(o=>o.dispatched>0 && o.remaining===0).length,
+  }),[orderTracking])
+
+  const trackFiltered = useMemo(()=>{
+    const q = trackSearch.toLowerCase().trim()
+    if (!q) return orderTracking
+    return orderTracking.filter(o=>
+      o.order_number?.toLowerCase().includes(q) ||
+      o.product_name?.toLowerCase().includes(q)
+    )
+  },[orderTracking,trackSearch])
+
   async function updateStatus(id, status) {
     const {error} = await supabase.from('dispatch_orders').update({status}).eq('id',id)
     if(error){ toast.error(error.message); return }
@@ -756,21 +804,24 @@ export default function Dispatch({ profile }) {
 
   async function deleteChallan(id, no) {
     if(!confirm(`Delete challan ${no}? This cannot be undone.`)) return
-    await supabase.from('dispatch_orders').delete().eq('id',id)
+    const {error} = await supabase.from('dispatch_orders').delete().eq('id',id)
+    if(error){ toast.error(error.message); return }
     setChallans(c=>c.filter(ch=>ch.id!==id))
     toast.success('Challan deleted')
   }
 
   async function deleteAgency(id) {
     if(!confirm('Delete this transport agency?')) return
-    await supabase.from('transport_agencies').delete().eq('id',id)
+    const {error} = await supabase.from('transport_agencies').delete().eq('id',id)
+    if(error){ toast.error(error.message); return }
     setAgencies(a=>a.filter(ag=>ag.id!==id))
     toast.success('Deleted')
   }
 
   async function deleteCustomer(id) {
     if(!confirm('Delete this customer?')) return
-    await supabase.from('customers').delete().eq('id',id)
+    const {error} = await supabase.from('customers').delete().eq('id',id)
+    if(error){ toast.error(error.message); return }
     setCustomers(c=>c.filter(cu=>cu.id!==id))
     toast.success('Deleted')
   }
@@ -831,7 +882,7 @@ export default function Dispatch({ profile }) {
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-slate-100 rounded-2xl w-fit mb-5">
-        {[{key:'challans',icon:Truck,label:'Challans'},{key:'agencies',icon:Building2,label:'Transport'},{key:'customers',icon:Users,label:'Customers'}].map(t=>(
+        {[{key:'challans',icon:Truck,label:'Challans'},{key:'tracking',icon:Package,label:'Order Tracking'},{key:'agencies',icon:Building2,label:'Transport'},{key:'customers',icon:Users,label:'Customers'}].map(t=>(
           <button key={t.key} onClick={()=>setTab(t.key)}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${tab===t.key?'bg-white shadow-sm text-slate-900':'text-slate-500 hover:text-slate-700'}`}>
             <t.icon size={14}/>{t.label}
@@ -1057,6 +1108,89 @@ export default function Dispatch({ profile }) {
                   </div>
                 )
               })}
+            </div>
+          )}
+
+          {/* ── ORDER TRACKING ──────────────────────────────────────────────── */}
+          {tab==='tracking' && (
+            <div>
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                {[
+                  {label:'Pending',   value:trackStats.pending,  cls:'text-slate-500'},
+                  {label:'Partial',   value:trackStats.partial,  cls:'text-amber-600'},
+                  {label:'Completed', value:trackStats.complete, cls:'text-emerald-600'},
+                ].map(s=>(
+                  <div key={s.label} className="card px-4 py-3">
+                    <div className={`text-2xl font-bold ${s.cls}`}>{s.value}</div>
+                    <div className="text-[11px] text-slate-400 font-medium mt-0.5">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="relative mb-4">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                <input value={trackSearch} onChange={e=>setTrackSearch(e.target.value)}
+                  placeholder="Search by order number or product…"
+                  className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-brand-500 bg-white"/>
+                {trackSearch&&<button onClick={()=>setTrackSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 cursor-pointer"><X size={13}/></button>}
+              </div>
+
+              {trackFiltered.length===0 ? (
+                <div className="card p-12 text-center">
+                  <Package size={40} className="mx-auto text-slate-300 mb-3"/>
+                  <div className="text-slate-600 font-semibold">
+                    {orderTracking.length===0?'No production orders to track':'No results found'}
+                  </div>
+                  <div className="text-slate-400 text-sm mt-1">
+                    {orderTracking.length===0
+                      ? 'Link challan line-items to a production order to track dispatch progress.'
+                      : 'Try a different search.'}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {trackFiltered.map(o=>{
+                    const done = o.remaining===0
+                    const unit = o.unit||''
+                    return (
+                      <div key={o.id} className="card p-5">
+                        <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[11px] font-bold text-slate-400">{o.order_number}</span>
+                              {done
+                                ? <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">FULLY DISPATCHED</span>
+                                : o.dispatched>0
+                                  ? <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">PARTIAL</span>
+                                  : <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">PENDING</span>}
+                              {o.over>0&&<span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-red-100 text-red-600 border border-red-200">OVER BY {o.over.toLocaleString('en-IN')} {unit}</span>}
+                            </div>
+                            <div className="font-semibold text-slate-800 mt-0.5 truncate">{o.product_name||'—'}</div>
+                          </div>
+                          <div className="flex gap-5 text-right">
+                            <div>
+                              <div className="text-[11px] text-slate-400 font-medium">Ordered</div>
+                              <div className="text-base font-bold text-slate-700">{o.ordered.toLocaleString('en-IN')} <span className="text-[11px] font-medium text-slate-400">{unit}</span></div>
+                            </div>
+                            <div>
+                              <div className="text-[11px] text-slate-400 font-medium">Dispatched</div>
+                              <div className="text-base font-bold text-blue-600">{o.dispatched.toLocaleString('en-IN')} <span className="text-[11px] font-medium text-slate-400">{unit}</span></div>
+                            </div>
+                            <div>
+                              <div className="text-[11px] text-slate-400 font-medium">Remaining</div>
+                              <div className={`text-base font-bold ${done?'text-emerald-600':'text-amber-600'}`}>{o.remaining.toLocaleString('en-IN')} <span className="text-[11px] font-medium text-slate-400">{unit}</span></div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${done?'bg-emerald-500':'bg-blue-500'}`} style={{width:`${o.pct}%`}}/>
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-1 text-right">{o.pct}% dispatched</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
         </>

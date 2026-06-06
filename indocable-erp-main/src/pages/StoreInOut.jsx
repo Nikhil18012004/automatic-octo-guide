@@ -45,6 +45,10 @@ const EMPTY_ITEM_FORM = {
 
 export default function StoreInOut({ profile }) {
   if (!ALLOWED_ROLES.includes(profile?.role)) return <AccessDenied />
+  return <StoreInOutInner profile={profile} />
+}
+
+function StoreInOutInner({ profile }) {
 
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()

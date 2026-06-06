@@ -5,6 +5,7 @@ import {
   CalendarDays, Plus, CheckCircle2, XCircle, Clock,
   RefreshCw, X, Save, ChevronDown, AlertCircle
 } from 'lucide-react'
+import { gradient } from '../lib/format'
 
 const LEAVE_TYPES = [
   { value: 'el',     label: 'Earned Leave',   short: 'EL',  color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
@@ -27,8 +28,6 @@ function daysBetween(a, b) {
   const diff = new Date(b) - new Date(a)
   return Math.max(0, Math.round(diff / 86400000) + 1)
 }
-const GRADIENTS = ['from-brand-500 to-brand-700','from-emerald-500 to-teal-600','from-violet-500 to-purple-700','from-amber-500 to-orange-600','from-cyan-500 to-blue-600','from-rose-500 to-pink-600']
-function gradient(s=''){let h=0;for(const c of s)h=((h<<5)-h)+c.charCodeAt(0);return GRADIENTS[Math.abs(h)%GRADIENTS.length]}
 
 const EMPTY_FORM = { employee_id: '', leave_type: 'el', from_date: '', to_date: '', reason: '' }
 
@@ -120,17 +119,16 @@ export default function Leaves({ profile }) {
       const yr = new Date(req.from_date).getFullYear()
       const { data: bal } = await supabase.from('leave_balances')
         .select('*').eq('employee_id', req.employee_id).eq('year', yr).single()
-      if (bal) {
-        await supabase.from('leave_balances')
-          .update({ [field]: (bal[field] || 0) + Number(req.days) }).eq('id', bal.id)
-      } else {
-        await supabase.from('leave_balances').insert({
-          employee_id: req.employee_id, year: yr,
-          el_total: 12, sl_total: 6, cl_total: 6,
-          el_used: 0, sl_used: 0, cl_used: 0,
-          [field]: Number(req.days),
-        })
-      }
+      const { error: balErr } = bal
+        ? await supabase.from('leave_balances')
+            .update({ [field]: (bal[field] || 0) + Number(req.days) }).eq('id', bal.id)
+        : await supabase.from('leave_balances').insert({
+            employee_id: req.employee_id, year: yr,
+            el_total: 12, sl_total: 6, cl_total: 6,
+            el_used: 0, sl_used: 0, cl_used: 0,
+            [field]: Number(req.days),
+          })
+      if (balErr) { toast.error(balErr.message); setSaving(false); return }
     }
     setSaving(false)
     toast.success('Leave approved')
@@ -141,10 +139,11 @@ export default function Leaves({ profile }) {
   // ── Reject ─────────────────────────────────────────────────────────────────
   async function rejectRequest() {
     if (!rejectModal) return
-    await supabase.from('leave_requests').update({
+    const { error } = await supabase.from('leave_requests').update({
       status: 'rejected', rejection_reason: rejectReason,
       approved_by: profile?.id, approved_at: new Date().toISOString(),
     }).eq('id', rejectModal.id)
+    if (error) { toast.error(error.message); return }
     toast.success('Leave rejected')
     setRejectModal(null); setRejectReason('')
     fetchAll()
@@ -152,7 +151,8 @@ export default function Leaves({ profile }) {
 
   // ── Balance cell edit ──────────────────────────────────────────────────────
   async function updateBalance(id, field, value) {
-    await supabase.from('leave_balances').update({ [field]: Number(value) }).eq('id', id)
+    const { error } = await supabase.from('leave_balances').update({ [field]: Number(value) }).eq('id', id)
+    if (error) { toast.error(error.message); return }
     setBalances(p => p.map(b => b.id === id ? { ...b, [field]: Number(value) } : b))
   }
 

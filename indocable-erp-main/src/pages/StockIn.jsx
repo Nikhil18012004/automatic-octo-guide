@@ -20,6 +20,10 @@ const EMPTY_LOC = { store_code: '', store_name: '', zone_code: '', zone_label: '
 
 export default function StockIn({ profile }) {
   if (!['owner', 'operator'].includes(profile.role)) return <AccessDenied />
+  return <StockInInner profile={profile} />
+}
+
+function StockInInner({ profile }) {
 
   const [materials,     setMaterials]     = useState([])
   const [recent,        setRecent]        = useState([])

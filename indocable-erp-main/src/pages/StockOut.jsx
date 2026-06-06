@@ -11,6 +11,10 @@ function fmtDate(d) {
 
 export default function StockOut({ profile }) {
   if (!['owner', 'operator', 'production_head'].includes(profile.role)) return <AccessDenied />
+  return <StockOutInner profile={profile} />
+}
+
+function StockOutInner({ profile }) {
 
   const [materials, setMaterials] = useState([])
   const [recent,    setRecent]    = useState([])

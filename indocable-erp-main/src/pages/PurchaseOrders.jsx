@@ -9,8 +9,8 @@ import {
   Star, ChevronDown, MessageCircle, ExternalLink,
   Award, AlertCircle, ThumbsUp, ThumbsDown
 } from 'lucide-react'
+import { fmtDate } from '../lib/format'
 
-function fmtDate(d) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—' }
 function fmtDateTime(d) { return d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—' }
 function fmtNum(n) { return Number(n || 0).toLocaleString('en-IN') }
 function daysBetween(a, b) {
@@ -366,13 +366,15 @@ function ReceiveModal({ po, items, onSave, onClose }) {
       }).select().single()
       if (rErr) throw rErr
 
-      await supabase.from('po_receipt_items').insert(
+      const { error: riErr } = await supabase.from('po_receipt_items').insert(
         linesWithQty.map(l => ({ receipt_id: receipt.id, po_item_id: l.po_item_id, received_qty: parseFloat(l.receiving) }))
       )
+      if (riErr) throw riErr
 
       for (const l of linesWithQty) {
         const newQty = l.already_received + parseFloat(l.receiving)
-        await supabase.from('purchase_order_items').update({ received_qty: newQty }).eq('id', l.po_item_id)
+        const { error: itemErr } = await supabase.from('purchase_order_items').update({ received_qty: newQty }).eq('id', l.po_item_id)
+        if (itemErr) throw itemErr
       }
 
       const allOrdered = items.reduce((s, i) => s + (parseFloat(i.quantity) || 0), 0)
@@ -380,12 +382,16 @@ function ReceiveModal({ po, items, onSave, onClose }) {
       const newStatus = nowReceived >= allOrdered ? 'received' : 'partial'
       const updatePayload = { status: newStatus }
       if (newStatus === 'received') updatePayload.received_at = new Date().toISOString()
-      await supabase.from('purchase_orders').update(updatePayload).eq('id', po.id)
+      const { error: poErr } = await supabase.from('purchase_orders').update(updatePayload).eq('id', po.id)
+      if (poErr) throw poErr
 
       for (const l of linesWithQty) {
         if (l.material_id) {
           const { data: mat } = await supabase.from('materials').select('current_stock').eq('id', l.material_id).single()
-          if (mat) await supabase.from('materials').update({ current_stock: (parseFloat(mat.current_stock) || 0) + parseFloat(l.receiving) }).eq('id', l.material_id)
+          if (mat) {
+            const { error: stockErr } = await supabase.from('materials').update({ current_stock: (parseFloat(mat.current_stock) || 0) + parseFloat(l.receiving) }).eq('id', l.material_id)
+            if (stockErr) throw stockErr
+          }
         }
       }
 
@@ -919,11 +925,10 @@ function SupplierModal({ supplier, onSave, onClose }) {
     if (!form.name.trim()) { toast.error('Supplier name required'); return }
     setSaving(true)
     try {
-      if (supplier?.id) {
-        await supabase.from('suppliers').update({ ...form }).eq('id', supplier.id)
-      } else {
-        await supabase.from('suppliers').insert({ ...form })
-      }
+      const { error } = supplier?.id
+        ? await supabase.from('suppliers').update({ ...form }).eq('id', supplier.id)
+        : await supabase.from('suppliers').insert({ ...form })
+      if (error) throw error
       toast.success(supplier ? 'Supplier updated' : 'Supplier added')
       onSave()
     } catch (err) {

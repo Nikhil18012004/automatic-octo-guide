@@ -79,7 +79,8 @@ export default function ShiftTemplates({ profile }) {
   }
 
   async function toggleActive(s) {
-    await supabase.from('shifts').update({ is_active: !s.is_active }).eq('id', s.id)
+    const { error } = await supabase.from('shifts').update({ is_active: !s.is_active }).eq('id', s.id)
+    if (error) { toast.error(error.message); return }
     fetchShifts()
   }
 

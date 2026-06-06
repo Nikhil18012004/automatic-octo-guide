@@ -75,7 +75,8 @@ export default function EnquiryBuilder({ profile }) {
       unit:        it.unit,
       notes:       it.notes.trim() || null,
     }))
-    await supabase.from('enquiry_items').insert(itemRows)
+    const { error: itemsErr } = await supabase.from('enquiry_items').insert(itemRows)
+    if (itemsErr) toast.error('Enquiry saved, but item details failed to attach — please WhatsApp us the list.')
 
     setEnquiryNo(no)
     setSubmitting(false)

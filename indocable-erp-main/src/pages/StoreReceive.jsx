@@ -35,6 +35,10 @@ const EMPTY_ITEM_FORM = {
 
 export default function StoreReceive({ profile }) {
   if (!ALLOWED_ROLES.includes(profile?.role)) return <AccessDenied />
+  return <StoreReceiveInner profile={profile} />
+}
+
+function StoreReceiveInner({ profile }) {
 
   const navigate = useNavigate()
   const { t } = useTranslation()

@@ -30,6 +30,10 @@ const STATUS_BADGE = {
 
 export default function StoreRequests({ profile }) {
   if (!STORE_ROLES.STORE_VIEW.includes(profile?.role)) return <AccessDenied />
+  return <StoreRequestsInner profile={profile} />
+}
+
+function StoreRequestsInner({ profile }) {
 
   const navigate = useNavigate()
   const [codes, setCodes] = useState(getCodes())

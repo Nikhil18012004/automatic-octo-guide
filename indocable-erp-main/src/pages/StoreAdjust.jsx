@@ -20,6 +20,10 @@ const TODAY = new Date().toISOString().split('T')[0]
 
 export default function StoreAdjust({ profile }) {
   if (!ALLOWED_ROLES.includes(profile?.role)) return <AccessDenied />
+  return <StoreAdjustInner profile={profile} />
+}
+
+function StoreAdjustInner({ profile }) {
 
   const navigate = useNavigate()
   const [items, setItems] = useState([])

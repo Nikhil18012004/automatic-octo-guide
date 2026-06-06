@@ -73,7 +73,7 @@ function EnquiryModal({ product, selectedVariant, onClose, profile }) {
     if (error) { toast.error('Failed to submit. Please WhatsApp us.'); setSubmitting(false); return }
 
     // Insert line item
-    await supabase.from('enquiry_items').insert({
+    const { error: itemErr } = await supabase.from('enquiry_items').insert({
       enquiry_id:       enquiry.id,
       cable_product_id: product.id,
       description:      `${product.name} — ${variantStr}`,
@@ -81,6 +81,7 @@ function EnquiryModal({ product, selectedVariant, onClose, profile }) {
       unit:             form.unit,
       notes:            form.notes.trim() || null,
     })
+    if (itemErr) toast.error('Enquiry saved, but item details failed to attach — please WhatsApp us.')
 
     setSubmitting(false)
     setDoneWaText(waText)

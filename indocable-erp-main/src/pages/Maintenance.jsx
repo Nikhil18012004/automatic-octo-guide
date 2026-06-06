@@ -6,8 +6,8 @@ import {
   Wrench, Plus, RefreshCw, X, Save, AlertTriangle,
   CheckCircle2, Clock, Trash2, Calendar, Factory
 } from 'lucide-react'
+import { fmtDate } from '../lib/format'
 
-function fmtDate(d){return d?new Date(d+'T12:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'—'}
 function fmtDateTime(d){return d?new Date(d).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'—'}
 function todayISO(){return new Date().toISOString().slice(0,10)}
 
@@ -99,7 +99,8 @@ export default function Maintenance({ profile }) {
 
   async function deleteBreakdown(id) {
     if (!await confirmToast('Delete this breakdown record?')) return
-    await supabase.from('machine_breakdowns').delete().eq('id', id)
+    const { error } = await supabase.from('machine_breakdowns').delete().eq('id', id)
+    if (error) { toast.error(error.message); return }
     setBreakdowns(b=>b.filter(bd=>bd.id!==id))
     toast.success('Deleted')
   }
@@ -124,14 +125,16 @@ export default function Maintenance({ profile }) {
   }
 
   async function markPMDone(id) {
-    await supabase.from('maintenance_schedule').update({ is_completed: true, last_done_date: todayISO() }).eq('id', id)
+    const { error } = await supabase.from('maintenance_schedule').update({ is_completed: true, last_done_date: todayISO() }).eq('id', id)
+    if (error) { toast.error(error.message); return }
     setSchedule(s=>s.map(pm=>pm.id===id?{...pm,is_completed:true,last_done_date:todayISO()}:pm))
     toast.success('Marked as done')
   }
 
   async function deletePM(id) {
     if (!await confirmToast('Delete this schedule item?')) return
-    await supabase.from('maintenance_schedule').delete().eq('id', id)
+    const { error } = await supabase.from('maintenance_schedule').delete().eq('id', id)
+    if (error) { toast.error(error.message); return }
     setSchedule(s=>s.filter(pm=>pm.id!==id))
     toast.success('Deleted')
   }

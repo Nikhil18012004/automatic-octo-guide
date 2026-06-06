@@ -21,12 +21,21 @@ npm install
 ```
 Wait for it to finish (1-2 minutes).
 
-### Step 5 — Run the app
+### Step 5 — Set up environment variables (only once)
+Copy `.env.example` to `.env.local` and fill in your Supabase URL and anon key
+(Supabase → Settings → API). Without this the app will show a "Missing Supabase
+config" error on start.
+```
+cp .env.example .env.local
+```
+(On Windows Command Prompt use `copy .env.example .env.local`.)
+
+### Step 6 — Run the app
 ```
 npm run dev
 ```
 
-### Step 6 — Open in browser
+### Step 7 — Open in browser
 Go to: http://localhost:5173
 
 ---
@@ -44,3 +53,7 @@ npm run dev
 npm run build
 ```
 Then upload the `dist` folder to Vercel.
+
+In Vercel, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (and optionally
+`VITE_STORE_ACCESS_ID` / `VITE_STORE_ACCESS_PASSWORD`) under
+Project → Settings → Environment Variables before building.

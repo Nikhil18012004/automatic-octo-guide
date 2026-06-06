@@ -26,6 +26,10 @@ function fmtDate(d) {
 
 export default function StockHistory({ profile }) {
   if (!['owner', 'admin', 'operator', 'production_head'].includes(profile.role)) return <AccessDenied />
+  return <StockHistoryInner profile={profile} />
+}
+
+function StockHistoryInner({ profile }) {
 
   const [receipts,    setReceipts]    = useState([])
   const [issues,      setIssues]      = useState([])

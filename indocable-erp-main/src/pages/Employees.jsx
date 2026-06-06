@@ -143,7 +143,8 @@ export default function Employees({ profile }) {
     }
 
     // Save skills: delete all then re-insert active ones
-    await supabase.from('employee_skills').delete().eq('employee_id', empId)
+    const { error: delErr } = await supabase.from('employee_skills').delete().eq('employee_id', empId)
+    if (delErr) { playError(); toast.error(delErr.message); setSaving(false); return }
     const toInsert = Object.entries(skills)
       .filter(([, s]) => s.skill_level > 0)
       .map(([machine_id, s]) => ({
@@ -155,7 +156,10 @@ export default function Employees({ profile }) {
         trainer_id: s.trainer_id || null,
         notes: s.notes || null,
       }))
-    if (toInsert.length > 0) await supabase.from('employee_skills').insert(toInsert)
+    if (toInsert.length > 0) {
+      const { error: insErr } = await supabase.from('employee_skills').insert(toInsert)
+      if (insErr) { playError(); toast.error(insErr.message); setSaving(false); return }
+    }
 
     setSaving(false)
     playSuccess()
@@ -165,7 +169,8 @@ export default function Employees({ profile }) {
   }
 
   async function toggleActive(emp) {
-    await supabase.from('employees').update({ is_active: !emp.is_active }).eq('id', emp.id)
+    const { error } = await supabase.from('employees').update({ is_active: !emp.is_active }).eq('id', emp.id)
+    if (error) { toast.error(error.message); return }
     fetchAll()
   }
 

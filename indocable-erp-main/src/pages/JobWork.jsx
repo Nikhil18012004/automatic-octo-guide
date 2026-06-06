@@ -7,8 +7,8 @@ import {
   PackagePlus, PackageMinus, RotateCcw, Truck, FileText,
   ChevronDown, Printer, AlertCircle
 } from 'lucide-react'
+import { fmtDate } from '../lib/format'
 
-function fmtDate(d) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—' }
 function fmtNum(n, dec = 2) { return Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: dec }) }
 function genJWNumber(count) {
   const d = new Date()

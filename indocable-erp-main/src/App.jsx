@@ -1,59 +1,73 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { Toaster } from 'react-hot-toast'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { supabase } from './supabase'
-import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import Materials from './pages/Materials'
-import StockIn from './pages/StockIn'
-import StockOut from './pages/StockOut'
-import StockHistory from './pages/StockHistory'
-import ManageUsers from './pages/ManageUsers'
-import NewQuotation from './pages/NewQuotation'
-import QuotationList from './pages/QuotationList'
-import BomMaterials from './pages/BomMaterials'
-import GlobalVariables from './pages/GlobalVariables'
-import Machines from './pages/Machines'
-import Drums from './pages/Drums'
-import Employees from './pages/Employees'
-import ShiftPlanner from './pages/ShiftPlanner'
-import ShiftTemplates from './pages/ShiftTemplates'
-import Attendance from './pages/Attendance'
-import Leaves from './pages/Leaves'
-import Payroll from './pages/Payroll'
-import Advances from './pages/Advances'
-import HRReports from './pages/HRReports'
-import ProductionOrders from './pages/ProductionOrders'
-import Dispatch from './pages/Dispatch'
-import Maintenance from './pages/Maintenance'
-import PurchaseOrders from './pages/PurchaseOrders'
-import JobWork from './pages/JobWork'
-import StoreRoom from './pages/StoreRoom'
-import StoreItems from './pages/StoreItems'
-import StoreInOut from './pages/StoreInOut'
-import StoreReturn from './pages/StoreReturn'
-import StoreAdjust from './pages/StoreAdjust'
-import StoreHistory from './pages/StoreHistory'
-import StoreLocationManager from './pages/StoreLocationManager'
-import StoreGate from './pages/StoreGate'
-import StoreAccess from './pages/StoreAccess'
-import StoreRequests from './pages/StoreRequests'
-import Layout from './components/Layout'
-import CatalogAdmin from './pages/CatalogAdmin'
-import EnquiryAdmin from './pages/EnquiryAdmin'
 
-// ── Portal imports ────────────────────────────────────────────────────────────
+// Layout shells stay eager so the app chrome paints instantly; every page is
+// lazy-loaded so the initial bundle only ships the route the user actually opens.
+import Layout from './components/Layout'
 import PortalLayout from './components/PortalLayout'
-import PortalDashboard from './pages/portal/PortalDashboard'
-import CableCatalog from './pages/portal/CableCatalog'
-import CableDetail from './pages/portal/CableDetail'
-import CableSizer from './pages/portal/CableSizer'
-import EnquiryBuilder from './pages/portal/EnquiryBuilder'
-import MyEnquiries from './pages/portal/MyEnquiries'
-import AboutPage from './pages/portal/AboutPage'
-import RateCard from './pages/portal/RateCard'
+
+const Login = lazy(() => import('./pages/Login'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Materials = lazy(() => import('./pages/Materials'))
+const StockIn = lazy(() => import('./pages/StockIn'))
+const StockOut = lazy(() => import('./pages/StockOut'))
+const StockHistory = lazy(() => import('./pages/StockHistory'))
+const ManageUsers = lazy(() => import('./pages/ManageUsers'))
+const NewQuotation = lazy(() => import('./pages/NewQuotation'))
+const QuotationList = lazy(() => import('./pages/QuotationList'))
+const BomMaterials = lazy(() => import('./pages/BomMaterials'))
+const GlobalVariables = lazy(() => import('./pages/GlobalVariables'))
+const Machines = lazy(() => import('./pages/Machines'))
+const Drums = lazy(() => import('./pages/Drums'))
+const Employees = lazy(() => import('./pages/Employees'))
+const ShiftPlanner = lazy(() => import('./pages/ShiftPlanner'))
+const ShiftTemplates = lazy(() => import('./pages/ShiftTemplates'))
+const Attendance = lazy(() => import('./pages/Attendance'))
+const Leaves = lazy(() => import('./pages/Leaves'))
+const Payroll = lazy(() => import('./pages/Payroll'))
+const Advances = lazy(() => import('./pages/Advances'))
+const HRReports = lazy(() => import('./pages/HRReports'))
+const ProductionOrders = lazy(() => import('./pages/ProductionOrders'))
+const Dispatch = lazy(() => import('./pages/Dispatch'))
+const Maintenance = lazy(() => import('./pages/Maintenance'))
+const PurchaseOrders = lazy(() => import('./pages/PurchaseOrders'))
+const JobWork = lazy(() => import('./pages/JobWork'))
+const StoreRoom = lazy(() => import('./pages/StoreRoom'))
+const StoreItems = lazy(() => import('./pages/StoreItems'))
+const StoreInOut = lazy(() => import('./pages/StoreInOut'))
+const StoreReturn = lazy(() => import('./pages/StoreReturn'))
+const StoreAdjust = lazy(() => import('./pages/StoreAdjust'))
+const StoreHistory = lazy(() => import('./pages/StoreHistory'))
+const StoreLocationManager = lazy(() => import('./pages/StoreLocationManager'))
+const StoreGate = lazy(() => import('./pages/StoreGate'))
+const StoreAccess = lazy(() => import('./pages/StoreAccess'))
+const StoreRequests = lazy(() => import('./pages/StoreRequests'))
+const CatalogAdmin = lazy(() => import('./pages/CatalogAdmin'))
+const EnquiryAdmin = lazy(() => import('./pages/EnquiryAdmin'))
+
+// ── Portal pages ────────────────────────────────────────────────────────────
+const PortalDashboard = lazy(() => import('./pages/portal/PortalDashboard'))
+const CableCatalog = lazy(() => import('./pages/portal/CableCatalog'))
+const CableDetail = lazy(() => import('./pages/portal/CableDetail'))
+const CableSizer = lazy(() => import('./pages/portal/CableSizer'))
+const EnquiryBuilder = lazy(() => import('./pages/portal/EnquiryBuilder'))
+const MyEnquiries = lazy(() => import('./pages/portal/MyEnquiries'))
+const AboutPage = lazy(() => import('./pages/portal/AboutPage'))
+const RateCard = lazy(() => import('./pages/portal/RateCard'))
 
 const PORTAL_ROLES = ['dealer', 'client']
+
+function PageFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-500 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading Indocable…</p>
+      </div>
+    </div>
+  )
+}
 
 export default function App() {
   const [session,      setSession]      = useState(null)
@@ -129,14 +143,7 @@ export default function App() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading Indocable…</p>
-        </div>
-      </div>
-    )
+    return <PageFallback />
   }
 
   if (session && profileError) {
@@ -152,7 +159,7 @@ export default function App() {
           <p className="text-gray-600 text-sm mb-4">Run this in Supabase SQL Editor:</p>
           <code className="block bg-gray-100 rounded-lg p-3 text-xs text-left text-gray-700 mb-6 whitespace-pre">
 {`insert into profiles (id, full_name, role)
-select id, 'Parth Chhaperia', 'admin'
+select id, 'Your Name', 'admin'
 from auth.users
 where email = '${session.user.email}'
 on conflict (id) do nothing;`}
@@ -171,8 +178,7 @@ on conflict (id) do nothing;`}
   const isPortalRole = session && profile && PORTAL_ROLES.includes(profile.role)
 
   return (
-    <>
-      <Toaster position="top-right" />
+    <Suspense fallback={<PageFallback />}>
       <Routes>
         {/* Physical store monitor — no ERP chrome */}
         <Route path="/store-gate" element={<StoreGate />} />
@@ -299,6 +305,6 @@ on conflict (id) do nothing;`}
           }
         />
       </Routes>
-    </>
+    </Suspense>
   )
 }

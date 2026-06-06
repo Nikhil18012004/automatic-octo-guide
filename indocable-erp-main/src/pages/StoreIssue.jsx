@@ -27,6 +27,10 @@ const EMPTY_FORM = {
 
 export default function StoreIssue({ profile }) {
   if (!ALLOWED_ROLES.includes(profile?.role)) return <AccessDenied />
+  return <StoreIssueInner profile={profile} />
+}
+
+function StoreIssueInner({ profile }) {
 
   const navigate = useNavigate()
   const { t } = useTranslation()

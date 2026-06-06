@@ -91,11 +91,12 @@ export default function ShiftPlanner({ profile }) {
     const machineIds = machines.map(m => m.id)
 
     // Delete existing assignments for this date+shift for all machines
-    await supabase.from('shift_assignments')
+    const { error: delError } = await supabase.from('shift_assignments')
       .delete()
       .eq('assignment_date', dateStr)
       .eq('shift', shift)
       .in('machine_id', machineIds)
+    if (delError) { playError(); toast.error('Save failed: ' + delError.message); setSaving(false); return }
 
     // Re-insert
     const rows = []

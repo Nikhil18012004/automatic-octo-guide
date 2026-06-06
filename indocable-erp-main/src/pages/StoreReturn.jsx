@@ -24,6 +24,10 @@ const EMPTY_FORM = {
 
 export default function StoreReturn({ profile }) {
   if (!ALLOWED_ROLES.includes(profile?.role)) return <AccessDenied />
+  return <StoreReturnInner profile={profile} />
+}
+
+function StoreReturnInner({ profile }) {
 
   const navigate = useNavigate()
   const { form, setForm, updateField, resetForm, saving, setSaving } = useStoreForm(EMPTY_FORM)

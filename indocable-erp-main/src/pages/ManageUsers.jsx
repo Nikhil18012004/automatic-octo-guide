@@ -114,6 +114,10 @@ function ResetPasswordModal({ user, onClose, onDone }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ManageUsers({ profile }) {
   if (profile?.role !== 'owner') return <AccessDenied />
+  return <ManageUsersInner profile={profile} />
+}
+
+function ManageUsersInner({ profile }) {
 
   const [users, setUsers]           = useState([])
   const [showForm, setShowForm]     = useState(false)
@@ -209,11 +213,12 @@ export default function ManageUsers({ profile }) {
 
     // Save dealer/client extra fields
     if (['dealer', 'client'].includes(form.role) && (form.company_name || form.city || form.territory)) {
-      await supabase.from('profiles').update({
+      const { error: extraErr } = await supabase.from('profiles').update({
         company_name: form.company_name.trim() || null,
         city:         form.city.trim()         || null,
         territory:    form.territory.trim()    || null,
       }).eq('id', userId)
+      if (extraErr) toast.error('User created, but saving company details failed: ' + extraErr.message)
     }
 
     toast.success(`${form.full_name} added — they can log in now`)

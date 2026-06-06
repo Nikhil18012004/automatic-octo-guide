@@ -8,6 +8,7 @@ import {
   Users, Clock, Calendar, AlertCircle, Trash2,
   PackageMinus, BarChart2, Layers
 } from 'lucide-react'
+import { gradient } from '../lib/format'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const STATUSES = {
@@ -18,8 +19,6 @@ const STATUSES = {
   cancelled:   { label: 'Cancelled',   color: 'bg-red-100 text-red-700 border-red-200',          dot: 'bg-red-400' },
 }
 const UNITS = ['pcs', 'kg', 'mtr', 'coil', 'drum', 'roll', 'box', 'set']
-const GRADIENTS = ['from-brand-500 to-brand-700','from-emerald-500 to-teal-600','from-violet-500 to-purple-700','from-amber-500 to-orange-600','from-cyan-500 to-blue-600','from-rose-500 to-pink-600']
-function gradient(s=''){let h=0;for(const c of s)h=((h<<5)-h)+c.charCodeAt(0);return GRADIENTS[Math.abs(h)%GRADIENTS.length]}
 function initials(n=''){return n.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()||'?'}
 function fmtDate(d){return d?new Date(d+'T12:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'}):'—'}
 function genOrderNumber(count) {
@@ -223,16 +222,19 @@ export default function ProductionOrders({ profile }) {
       }
 
       // Operators: delete then insert
-      await supabase.from('production_order_operators').delete().eq('order_id', orderId)
+      const { error: opDelErr } = await supabase.from('production_order_operators').delete().eq('order_id', orderId)
+      if (opDelErr) throw opDelErr
       if (opIds.length) {
-        await supabase.from('production_order_operators').insert(opIds.map(eid => ({ order_id: orderId, employee_id: eid })))
+        const { error: opInsErr } = await supabase.from('production_order_operators').insert(opIds.map(eid => ({ order_id: orderId, employee_id: eid })))
+        if (opInsErr) throw opInsErr
       }
 
       // Materials: delete then insert
-      await supabase.from('production_order_materials').delete().eq('order_id', orderId)
+      const { error: matDelErr } = await supabase.from('production_order_materials').delete().eq('order_id', orderId)
+      if (matDelErr) throw matDelErr
       const validMats = matRows.filter(r => r.material_name.trim() && parseFloat(r.planned_qty) > 0)
       if (validMats.length) {
-        await supabase.from('production_order_materials').insert(validMats.map(r => ({
+        const { error: matInsErr } = await supabase.from('production_order_materials').insert(validMats.map(r => ({
           order_id:      orderId,
           material_id:   r.material_id || null,
           material_name: r.material_name.trim(),
@@ -240,6 +242,7 @@ export default function ProductionOrders({ profile }) {
           unit:          r.unit || null,
           actual_qty:    0,
         })))
+        if (matInsErr) throw matInsErr
       }
 
       toast.success(editOrder ? 'Order updated' : 'Order created')
@@ -264,7 +267,8 @@ export default function ProductionOrders({ profile }) {
 
   async function deleteOrder(order) {
     if (!await confirmToast(`Delete ${order.order_number}? This cannot be undone.`)) return
-    await supabase.from('production_orders').delete().eq('id', order.id)
+    const { error } = await supabase.from('production_orders').delete().eq('id', order.id)
+    if (error) { toast.error(error.message); return }
     setDetailOrder(null)
     toast.success('Order deleted')
     fetchOrders()
@@ -290,7 +294,8 @@ export default function ProductionOrders({ profile }) {
 
   // ── Material actual qty ───────────────────────────────────────────────────
   async function updateActualQty(matRowId, qty) {
-    await supabase.from('production_order_materials').update({ actual_qty: parseFloat(qty)||0 }).eq('id', matRowId)
+    const { error } = await supabase.from('production_order_materials').update({ actual_qty: parseFloat(qty)||0 }).eq('id', matRowId)
+    if (error) { toast.error(error.message); return }
     fetchOrders()
   }
 
@@ -300,7 +305,7 @@ export default function ProductionOrders({ profile }) {
     if (!mats.length) { toast.error('No materials with actual quantity set'); return }
     setStockOutSaving(true)
     try {
-      await supabase.from('stock_issues').insert(mats.map(r => ({
+      const { error } = await supabase.from('stock_issues').insert(mats.map(r => ({
         material_id: r.material_id,
         quantity:    r.actual_qty,
         unit:        r.unit || matMap[r.material_id]?.unit || '',
@@ -309,6 +314,7 @@ export default function ProductionOrders({ profile }) {
         issue_date:  new Date().toISOString().slice(0,10),
         issued_by:   profile.id,
       })))
+      if (error) throw error
       toast.success(`Stock out recorded for ${mats.length} material(s)`)
     } catch (err) {
       toast.error(err.message)

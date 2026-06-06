@@ -17,6 +17,10 @@ const EMPTY_FORM = {
 
 export default function StoreGateRequest({ profile }) {
   if (!ALLOWED_ROLES.includes(profile?.role)) return <AccessDenied />
+  return <StoreGateRequestInner profile={profile} />
+}
+
+function StoreGateRequestInner({ profile }) {
 
   const { t } = useTranslation()
   const [items, setItems] = useState([])

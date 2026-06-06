@@ -6,12 +6,10 @@ import {
   IndianRupee, Plus, Trash2, RefreshCw, X, Save,
   ChevronDown, AlertCircle, CheckCircle2
 } from 'lucide-react'
+import { gradient, fmtINR } from '../lib/format'
 
-const GRADIENTS = ['from-brand-500 to-brand-700','from-emerald-500 to-teal-600','from-violet-500 to-purple-700','from-amber-500 to-orange-600','from-cyan-500 to-blue-600','from-rose-500 to-pink-600']
-function gradient(s=''){let h=0;for(const c of s)h=((h<<5)-h)+c.charCodeAt(0);return GRADIENTS[Math.abs(h)%GRADIENTS.length]}
 function initials(n=''){return n.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()||'?'}
 function fmtDate(d){return d?new Date(d+'T12:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):''}
-function fmtINR(n){return '₹'+(Number(n)||0).toLocaleString('en-IN')}
 
 const EMPTY_FORM = { employee_id: '', date: new Date().toISOString().slice(0,10), amount: '', purpose: '' }
 
