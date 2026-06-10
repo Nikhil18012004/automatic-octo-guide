@@ -3,6 +3,10 @@ import { supabase } from '../supabase'
 import toast from 'react-hot-toast'
 import { Zap, Mail, Lock, ArrowRight, Eye, EyeOff, Package } from 'lucide-react'
 
+// Google OAuth must be enabled in Supabase (Auth → Providers) AND turned on here.
+// Until then we default to Staff Login so users never hit a dead "provider not enabled" button.
+const GOOGLE_ENABLED = import.meta.env.VITE_GOOGLE_AUTH_ENABLED === 'true'
+
 function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -20,7 +24,8 @@ export default function Login() {
   const [loading,       setLoading]       = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [showPw,        setShowPw]        = useState(false)
-  const [tab,           setTab]           = useState('client') // 'client' | 'staff'
+  // Default to the tab that actually works in the current config.
+  const [tab,           setTab]           = useState(GOOGLE_ENABLED ? 'client' : 'staff') // 'client' | 'staff'
 
   async function handleGoogleLogin() {
     setGoogleLoading(true)
@@ -29,7 +34,13 @@ export default function Login() {
       options: { redirectTo: window.location.origin },
     })
     if (error) {
-      toast.error(error.message)
+      // Supabase returns "provider is not enabled" when Google OAuth isn't configured.
+      // Don't show the raw error — guide the user to the working Staff Login instead.
+      const notEnabled = /provider is not enabled/i.test(error.message)
+      toast.error(notEnabled
+        ? 'Google sign-in isn’t enabled yet — please use Staff Login.'
+        : error.message)
+      if (notEnabled) setTab('staff')
       setGoogleLoading(false)
     }
     // On success the browser navigates to Google — this function won't continue
@@ -135,8 +146,8 @@ export default function Login() {
 
               <button
                 onClick={handleGoogleLogin}
-                disabled={googleLoading}
-                className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-all cursor-pointer disabled:opacity-60 shadow-sm"
+                disabled={googleLoading || !GOOGLE_ENABLED}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
               >
                 {googleLoading ? (
                   <svg className="animate-spin h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24">
@@ -148,6 +159,15 @@ export default function Login() {
                 )}
                 {googleLoading ? 'Redirecting to Google…' : 'Continue with Google'}
               </button>
+
+              {!GOOGLE_ENABLED && (
+                <p className="mt-3 text-center text-xs text-gray-500">
+                  Google sign-in is being set up.{' '}
+                  <button onClick={() => setTab('staff')} className="text-brand-600 font-semibold hover:underline cursor-pointer">
+                    Use Staff Login
+                  </button>{' '}for now.
+                </p>
+              )}
 
               <div className="mt-5 bg-brand-50 border border-brand-100 rounded-xl px-4 py-3">
                 <p className="text-xs text-brand-700 font-medium leading-relaxed">
