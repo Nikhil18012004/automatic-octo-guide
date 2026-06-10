@@ -45,6 +45,12 @@ const StoreAccess = lazy(() => import('./pages/StoreAccess'))
 const StoreRequests = lazy(() => import('./pages/StoreRequests'))
 const CatalogAdmin = lazy(() => import('./pages/CatalogAdmin'))
 const EnquiryAdmin = lazy(() => import('./pages/EnquiryAdmin'))
+const Account = lazy(() => import('./pages/Account'))
+const CrmDashboard = lazy(() => import('./pages/crm/CrmDashboard'))
+const CrmPipeline = lazy(() => import('./pages/crm/CrmPipeline'))
+const CrmCustomers = lazy(() => import('./pages/crm/CrmCustomers'))
+const CustomerDetail = lazy(() => import('./pages/crm/CustomerDetail'))
+const CrmTasks = lazy(() => import('./pages/crm/CrmTasks'))
 
 // ── Portal pages ────────────────────────────────────────────────────────────
 const PortalDashboard = lazy(() => import('./pages/portal/PortalDashboard'))
@@ -220,6 +226,8 @@ on conflict (id) do nothing;`}
               <Route path="/stock-out"    element={<StockOut profile={profile} />} />
               <Route path="/stock-history"element={<StockHistory profile={profile} />} />
 
+              <Route path="/account" element={<Account profile={profile} onProfileUpdate={() => fetchProfile(session.user.id, false)} />} />
+
               <Route path="/store"           element={<StoreRoom profile={profile} />} />
               <Route path="/store/items"     element={<StoreItems profile={profile} />} />
               <Route path="/store/request"   element={<StoreInOut profile={profile} />} />
@@ -264,6 +272,16 @@ on conflict (id) do nothing;`}
                 <>
                   <Route path="/dispatch"        element={<Dispatch profile={profile} />} />
                   <Route path="/purchase-orders" element={<PurchaseOrders profile={profile} />} />
+                </>
+              )}
+
+              {['owner','admin'].includes(profile.role) && (
+                <>
+                  <Route path="/crm"               element={<CrmDashboard profile={profile} />} />
+                  <Route path="/crm/pipeline"      element={<CrmPipeline profile={profile} />} />
+                  <Route path="/crm/customers"     element={<CrmCustomers profile={profile} />} />
+                  <Route path="/crm/customers/:id" element={<CustomerDetail profile={profile} />} />
+                  <Route path="/crm/tasks"         element={<CrmTasks profile={profile} />} />
                 </>
               )}
 

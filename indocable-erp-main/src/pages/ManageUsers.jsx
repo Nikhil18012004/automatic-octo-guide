@@ -113,7 +113,7 @@ function ResetPasswordModal({ user, onClose, onDone }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ManageUsers({ profile }) {
-  if (profile?.role !== 'owner') return <AccessDenied />
+  if (!['owner', 'admin'].includes(profile?.role)) return <AccessDenied />
   return <ManageUsersInner profile={profile} />
 }
 

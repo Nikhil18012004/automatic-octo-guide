@@ -96,6 +96,16 @@ const NAV_GROUPS = [
     ],
   },
   {
+    id: 'crm',
+    label: 'CRM',
+    items: [
+      { to: '/crm',           icon: BarChart2,    label: 'CRM Overview',  roles: ['owner','admin'] },
+      { to: '/crm/pipeline',  icon: TrendingUp,   label: 'Pipeline',      roles: ['owner','admin'] },
+      { to: '/crm/customers', icon: Users,        label: 'Customers',     roles: ['owner','admin'] },
+      { to: '/crm/tasks',     icon: CheckCircle2, label: 'Follow-ups',    roles: ['owner','admin'] },
+    ],
+  },
+  {
     id: 'hr',
     label: 'HR & Labour',
     items: [
@@ -130,7 +140,7 @@ function getInitials(name = '') {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
 }
 
-function SidebarNav({ profile, openGroups, toggleGroup, t, i18n, setLang, handleLogout, onNavClick }) {
+function SidebarNav({ profile, openGroups, toggleGroup, t, i18n, setLang, handleLogout, onNavClick, onProfileClick }) {
   return (
     <div className="flex flex-col h-full" style={{ background: '#0b1120' }}>
 
@@ -228,21 +238,28 @@ function SidebarNav({ profile, openGroups, toggleGroup, t, i18n, setLang, handle
 
       {/* User footer */}
       <div className="px-3 py-3 border-t border-white/[0.06] flex-shrink-0">
-        <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.04] transition-colors group">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-xs font-bold">{getInitials(profile.full_name)}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-white text-[13px] font-semibold truncate leading-tight">{profile.full_name}</div>
-            <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md mt-0.5 border ${roleBadgeBg[profile.role]}`}>
-              {profile.role === 'owner' && <ShieldCheck size={8} />}
-              {roleLabels[profile.role]}
-            </span>
-          </div>
+        <div className="flex items-center gap-1 p-1 rounded-xl hover:bg-white/[0.04] transition-colors group">
+          <button
+            onClick={onProfileClick}
+            title="Account settings"
+            className="flex items-center gap-3 flex-1 min-w-0 p-1 rounded-lg cursor-pointer text-left"
+          >
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-xs font-bold">{getInitials(profile.full_name)}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-white text-[13px] font-semibold truncate leading-tight">{profile.full_name}</div>
+              <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md mt-0.5 border ${roleBadgeBg[profile.role]}`}>
+                {profile.role === 'owner' && <ShieldCheck size={8} />}
+                {roleLabels[profile.role]}
+              </span>
+            </div>
+            <Settings size={14} className="text-slate-600 group-hover:text-slate-300 transition-colors flex-shrink-0" />
+          </button>
           <button
             onClick={handleLogout}
             title="Logout"
-            className="text-slate-600 hover:text-brand-400 transition-colors cursor-pointer p-1 rounded-lg hover:bg-white/5 opacity-0 group-hover:opacity-100"
+            className="text-slate-600 hover:text-brand-400 transition-colors cursor-pointer p-1.5 rounded-lg hover:bg-white/5 flex-shrink-0"
           >
             <LogOut size={15} />
           </button>
@@ -456,6 +473,7 @@ export default function Layout({ profile }) {
     setLang,
     handleLogout,
     onNavClick: () => setSidebarOpen(false),
+    onProfileClick: () => { playClick(); navigate('/account'); setSidebarOpen(false) },
   }
 
   return (
